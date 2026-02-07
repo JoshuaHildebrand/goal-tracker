@@ -2185,13 +2185,28 @@
     function editDeadlineInline(goalId, currentDeadline) {
       const deadlineDisplay = document.getElementById(`deadline-display-${goalId}`);
       
+      // Prevent multiple edit instances
+      if (deadlineDisplay.classList.contains('editing')) return;
+      
       // Create date input
       deadlineDisplay.classList.add('editing');
-      deadlineDisplay.innerHTML = `<input type="date" id="deadline-edit-${goalId}" value="${currentDeadline}" onblur="saveDeadlineInline('${goalId}')" onkeydown="if(event.key==='Enter'){this.blur();}" autofocus>`;
+      deadlineDisplay.innerHTML = `<input type="date" id="deadline-edit-${goalId}" value="${currentDeadline || ''}" style="padding: 0.5rem 1rem; border: 2px solid var(--accent); border-radius: 8px; font-size: 0.875rem; font-weight: 600; background: white; color: var(--text);">`;
       
-      // Focus the input
+      // Focus the input and set up blur handler
       const input = document.getElementById(`deadline-edit-${goalId}`);
       input.focus();
+      
+      // Save on blur
+      input.addEventListener('blur', () => {
+        saveDeadlineInline(goalId);
+      });
+      
+      // Save on Enter key
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          input.blur();
+        }
+      });
     }
     
     function saveDeadlineInline(goalId) {
