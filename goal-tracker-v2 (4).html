@@ -1,0 +1,2757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>Goal Tracker</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Sans:wght@400;500;600&display=swap');
+    
+    :root {
+      --primary: #1a0000;
+      --primary-light: #2d0a0a;
+      --accent: #8b0000;
+      --accent-light: #c41e1e;
+      --bg: #0a0a0a;
+      --surface: #1a1a1a;
+      --text: #e0e0e0;
+      --text-muted: #888888;
+      --border: #2a2a2a;
+      --success: #4a6741;
+      --shadow: rgba(0, 0, 0, 0.6);
+      --deadline-red: #c41e1e;
+      --target-yellow: #cc9900;
+      --glow-red: rgba(139, 0, 0, 0.5);
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding-top: 2rem;
+      position: relative;
+    }
+    
+    header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 200px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+    
+    h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 3.5rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.1em;
+      margin-bottom: 0.5rem;
+      animation: fadeInDown 0.6s ease-out;
+      text-transform: uppercase;
+      text-shadow: 0 0 20px var(--glow-red), 0 0 40px rgba(139, 0, 0, 0.3);
+    }
+    
+    .subtitle {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      font-weight: 400;
+      animation: fadeIn 0.6s ease-out 0.2s both;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+    
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-bottom: 2rem;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 0;
+      flex-wrap: wrap;
+    }
+    
+    .tab {
+      padding: 0.75rem 1.5rem;
+      background: transparent;
+      border: none;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border-bottom: 3px solid transparent;
+      position: relative;
+      top: 2px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    
+    .tab:hover {
+      color: var(--accent-light);
+      text-shadow: 0 0 10px var(--glow-red);
+    }
+    
+    .tab.active {
+      color: var(--text);
+      border-bottom-color: var(--accent);
+      text-shadow: 0 0 15px var(--glow-red);
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.4s ease-out;
+    }
+    
+    /* Compact Goal Cards */
+    .goal-card {
+      background: var(--surface);
+      border-radius: 4px;
+      padding: 0.75rem 1.25rem;
+      box-shadow: 0 4px 20px var(--shadow), inset 0 0 0 1px rgba(139, 0, 0, 0.2);
+      border: 1px solid var(--border);
+      transition: all 0.2s ease;
+      margin-bottom: 0.75rem;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .goal-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 3px;
+      height: 100%;
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--glow-red);
+    }
+    
+    .goal-card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 25px rgba(0, 0, 0, 0.8), 0 0 20px var(--glow-red);
+      border-color: var(--accent);
+    }
+    
+    .goal-card.collapsed {
+      padding: 0.75rem 1.25rem;
+    }
+    
+    .goal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .goal-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.3;
+      flex: 1;
+      transition: color 0.2s ease;
+      letter-spacing: 0.05em;
+    }
+    
+    .goal-header:hover .goal-title {
+      color: var(--accent-light);
+      text-shadow: 0 0 10px var(--glow-red);
+    }
+    
+    .goal-header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-shrink: 0;
+    }
+    
+    .expand-icon {
+      font-size: 1rem;
+      color: var(--text-muted);
+      transition: transform 0.3s ease;
+    }
+    
+    .goal-card:not(.collapsed) .expand-icon {
+      transform: rotate(180deg);
+    }
+    
+    .goal-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+    
+    .goal-card:not(.collapsed) .goal-content {
+      max-height: 5000px;
+      padding-top: 1rem;
+    }
+    
+    /* Badges - Compact */
+    .goal-deadline,
+    .completed-badge,
+    .boolean-goal-badge {
+      padding: 0.3rem 0.6rem;
+      border-radius: 2px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      white-space: nowrap;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    }
+    
+    .goal-deadline {
+      background: var(--accent);
+      color: white;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 0 10px var(--glow-red), 0 2px 8px rgba(0, 0, 0, 0.5);
+    }
+    
+    .goal-deadline:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 15px var(--accent), 0 0 30px var(--glow-red);
+    }
+    
+    .goal-deadline.overdue {
+      background: var(--accent-light);
+      animation: pulse-red 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse-red {
+      0%, 100% { box-shadow: 0 0 10px var(--glow-red); }
+      50% { box-shadow: 0 0 20px var(--accent), 0 0 40px var(--glow-red); }
+    }
+    
+    .goal-deadline.editing {
+      padding: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+    
+    .goal-deadline.editing input[type="date"] {
+      padding: 0.3rem 0.6rem;
+      border: 2px solid var(--accent);
+      border-radius: 2px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      background: var(--surface);
+      color: var(--text);
+    }
+    
+    .completed-badge {
+      background: var(--success);
+      color: white;
+      box-shadow: 0 0 10px rgba(74, 103, 65, 0.5);
+    }
+    
+    .boolean-goal-badge {
+      background: var(--primary);
+      color: var(--accent-light);
+      border: 1px solid var(--accent);
+      box-shadow: 0 0 10px var(--glow-red);
+    }
+    
+    /* Add Goal Section - Collapsible */
+    .add-goal-section {
+      background: var(--surface);
+      border-radius: 4px;
+      padding: 1rem 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 20px var(--shadow), inset 0 0 0 1px rgba(139, 0, 0, 0.2);
+      border: 1px solid var(--border);
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    
+    .add-goal-section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 3px;
+      height: 100%;
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--glow-red);
+    }
+    
+    .add-goal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .add-goal-header h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0;
+      letter-spacing: 0.05em;
+    }
+    
+    .add-goal-header:hover h2 {
+      color: var(--accent-light);
+      text-shadow: 0 0 10px var(--glow-red);
+    }
+    
+    .add-goal-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+    
+    .add-goal-section:not(.collapsed) .add-goal-content {
+      max-height: 2000px;
+      margin-top: 1.5rem;
+    }
+    
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+    
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      color: var(--text);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    input[type="text"],
+    input[type="date"],
+    textarea {
+      width: 100%;
+      padding: 0.75rem 0.875rem;
+      border: 2px solid var(--border);
+      border-radius: 2px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      transition: all 0.3s ease;
+      background: var(--bg);
+      color: var(--text);
+    }
+    
+    input[type="text"]:focus,
+    input[type="date"]:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: var(--surface);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 15px var(--glow-red);
+    }
+    
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+    
+    .objectives-list {
+      margin-top: 0.75rem;
+    }
+    
+    .objective-item {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+      align-items: center;
+    }
+    
+    .objective-item input {
+      flex: 1;
+    }
+    
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 2px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 15px var(--glow-red);
+      border: 1px solid var(--accent-light);
+    }
+    
+    .btn-primary:hover {
+      background: var(--accent-light);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7), 0 0 25px var(--accent);
+    }
+    
+    .btn-secondary {
+      background: transparent;
+      color: var(--accent-light);
+      border: 2px solid var(--accent);
+      padding: 0.65rem 1.4rem;
+      box-shadow: 0 0 10px var(--glow-red);
+    }
+    
+    .btn-secondary:hover {
+      background: var(--accent);
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 0 20px var(--accent);
+    }
+    
+    .btn-remove {
+      background: transparent;
+      border: none;
+      color: var(--accent-light);
+      font-size: 1.3rem;
+      cursor: pointer;
+      padding: 0.25rem 0.5rem;
+      transition: all 0.2s ease;
+      border-radius: 2px;
+    }
+    
+    .btn-remove:hover {
+      background: rgba(196, 30, 30, 0.2);
+      transform: scale(1.1);
+      text-shadow: 0 0 10px var(--accent);
+    }
+    
+    .btn-delete {
+      background: transparent;
+      color: var(--accent-light);
+      border: 1px solid var(--accent);
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      margin-top: 1rem;
+      box-shadow: 0 0 10px var(--glow-red);
+    }
+    
+    .btn-delete:hover {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 0 20px var(--accent);
+    }
+    
+    .btn-archive {
+      margin-right: 0.5rem;
+    }
+    
+    /* Objectives Section */
+    .objectives-section h3 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.75rem;
+    }
+    
+    .objective-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      background: var(--bg);
+      border-radius: 2px;
+      margin-bottom: 0.75rem;
+      transition: all 0.2s ease;
+      border: 1px solid var(--border);
+    }
+    
+    .objective-checkbox:hover {
+      background: var(--surface);
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--glow-red);
+    }
+    
+    .objective-checkbox input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: var(--accent);
+      flex-shrink: 0;
+    }
+    
+    .objective-checkbox.completed {
+      opacity: 0.5;
+      border-color: var(--success);
+    }
+    
+    .objective-checkbox.completed label {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+    
+    .objective-checkbox label {
+      flex: 1;
+      cursor: pointer;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+    
+    .objective-checkbox .btn-remove,
+    .objective-checkbox .target-date-toggle {
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    
+    .objective-checkbox:hover .btn-remove,
+    .objective-checkbox:hover .target-date-toggle {
+      opacity: 1;
+    }
+    
+    .target-date-toggle {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+    }
+    
+    .target-date-toggle:hover {
+      background: var(--bg);
+      color: var(--primary);
+    }
+    
+    .target-date-section {
+      margin-left: 2.5rem;
+      margin-top: 0.5rem;
+      margin-bottom: 0.75rem;
+      display: none;
+    }
+    
+    .target-date-section.show {
+      display: block;
+    }
+    
+    /* Progress Bar */
+    .progress-bar {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+    
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .progress-track {
+      height: 6px;
+      background: var(--bg);
+      border-radius: 3px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-light));
+      border-radius: 3px;
+      transition: width 0.5s ease;
+      box-shadow: 0 0 10px var(--glow-red);
+    }
+    
+    /* Daily Planner */
+    .daily-planner {
+      background: var(--surface);
+      border-radius: 4px;
+      padding: 2rem;
+      box-shadow: 0 4px 30px var(--shadow), inset 0 0 0 1px rgba(139, 0, 0, 0.2);
+      border: 1px solid var(--border);
+    }
+    
+    .daily-planner h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 1.5rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    
+    .planner-section {
+      margin-bottom: 2rem;
+    }
+    
+    .planner-section h3 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+    }
+    
+    .daily-task-list {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 1rem;
+      min-height: 100px;
+    }
+    
+    .daily-task {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.875rem;
+      background: var(--surface);
+      border-radius: 2px;
+      margin-bottom: 0.75rem;
+      border: 1px solid var(--border);
+      transition: all 0.2s ease;
+    }
+    
+    .daily-task:hover {
+      transform: translateX(4px);
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--glow-red);
+    }
+    
+    .daily-task.completed {
+      opacity: 0.5;
+    }
+    
+    .daily-task input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      accent-color: var(--accent);
+      flex-shrink: 0;
+      margin-top: 0.25rem;
+    }
+    
+    .daily-task-text {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    
+    .daily-task-objective {
+      font-size: 0.95rem;
+      color: var(--text);
+      line-height: 1.4;
+    }
+    
+    .daily-task.completed .daily-task-objective {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+    
+    .daily-task-goal {
+      font-size: 0.8rem;
+      color: var(--accent-light);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .objective-selector {
+      max-height: 450px;
+      overflow-y: auto;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem;
+      background: var(--bg);
+    }
+    
+    .goal-objectives-group {
+      margin-bottom: 1rem;
+    }
+    
+    .goal-objectives-title {
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .selectable-objective {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      background: var(--surface);
+      border-radius: 6px;
+      margin-bottom: 0.4rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 2px solid transparent;
+      font-size: 0.9rem;
+      color: var(--text);
+    }
+    
+    .selectable-objective:hover {
+      border-color: var(--accent);
+      background: var(--primary-light);
+      color: white;
+    }
+    
+    .selectable-objective.in-list {
+      background: var(--primary-light);
+      color: var(--accent-light);
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+    
+    .empty-planner {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text-muted);
+    }
+    
+    .empty-state svg {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 1.5rem;
+      opacity: 0.3;
+    }
+    
+    /* Calendar */
+    .calendar-planner-layout {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+    
+    .calendar-container {
+      background: var(--surface);
+      border-radius: 4px;
+      padding: 2rem;
+      box-shadow: 0 4px 30px var(--shadow), inset 0 0 0 1px rgba(139, 0, 0, 0.2);
+      border: 1px solid var(--border);
+    }
+    
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+    
+    .calendar-header h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    
+    .calendar-nav {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    
+    .calendar-nav button {
+      background: var(--accent);
+      color: white;
+      border: 1px solid var(--accent-light);
+      width: 36px;
+      height: 36px;
+      border-radius: 2px;
+      cursor: pointer;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      box-shadow: 0 0 10px var(--glow-red);
+    }
+    
+    .calendar-nav button:hover {
+      background: var(--accent-light);
+      transform: scale(1.05);
+      box-shadow: 0 0 20px var(--accent);
+    }
+    
+    .calendar-nav span {
+      font-weight: 600;
+      color: var(--text);
+      min-width: 150px;
+      text-align: center;
+      letter-spacing: 0.05em;
+    }
+    
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 0.5rem;
+    }
+    
+    .calendar-day-header {
+      text-align: center;
+      font-weight: 600;
+      color: var(--text-muted);
+      padding: 0.75rem;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .calendar-day {
+      aspect-ratio: 1;
+      border: 2px solid var(--border);
+      border-radius: 2px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: var(--bg);
+      padding: 0.5rem;
+    }
+    
+    .calendar-day:hover {
+      border-color: var(--accent);
+      transform: scale(1.05);
+      box-shadow: 0 0 15px var(--glow-red);
+    }
+    
+    .calendar-day.other-month {
+      opacity: 0.3;
+    }
+    
+    .calendar-day.today {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent-light);
+      font-weight: 700;
+      box-shadow: 0 0 20px var(--accent);
+    }
+    
+    .calendar-day.has-completions {
+      background: linear-gradient(135deg, var(--success) 0%, rgba(74, 103, 65, 0.5) 100%);
+      color: white;
+      border-color: var(--success);
+    }
+    
+    .calendar-day.has-deadline {
+      border: 3px solid var(--deadline-red);
+      border-style: dashed;
+      box-shadow: 0 0 10px var(--glow-red);
+    }
+    
+    .calendar-day.has-target {
+      border: 3px solid var(--target-yellow);
+      border-style: dashed;
+    }
+    
+    .calendar-day.has-deadline.has-completions {
+      border-style: solid;
+      background: linear-gradient(135deg, var(--deadline-red) 0%, var(--success) 100%);
+      box-shadow: 0 0 15px var(--accent);
+    }
+    
+    .calendar-day.has-target.has-completions {
+      border-style: solid;
+      background: linear-gradient(135deg, var(--target-yellow) 0%, var(--success) 100%);
+    }
+    
+    .calendar-day-number {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    
+    .deadline-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+    
+    .deadline-badge.red {
+      color: var(--deadline-red);
+    }
+    
+    .deadline-badge.yellow {
+      color: var(--target-yellow);
+    }
+    
+    .calendar-day.has-deadline .deadline-badge.red,
+    .calendar-day.has-target .deadline-badge.yellow {
+      color: white;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+    
+    .calendar-day-dots {
+      display: flex;
+      gap: 2px;
+      margin-top: 4px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    
+    .calendar-day-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.6;
+    }
+    
+    /* Goals Sidebar */
+    .goals-sidebar {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 20px var(--shadow);
+      border: 1px solid var(--border);
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    
+    .goals-sidebar h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 1rem;
+    }
+    
+    .sidebar-goal-item {
+      background: var(--bg);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border-left: 3px solid var(--primary);
+    }
+    
+    .sidebar-goal-item:hover {
+      transform: translateX(4px);
+      border-left-color: var(--accent);
+    }
+    
+    .sidebar-goal-item.no-deadline {
+      border-left-color: var(--text-muted);
+      opacity: 0.7;
+    }
+    
+    .sidebar-goal-title {
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+      font-size: 0.95rem;
+    }
+    
+    .sidebar-goal-deadline {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .sidebar-goal-deadline.overdue {
+      color: var(--deadline-red);
+      font-weight: 600;
+    }
+    
+    .sidebar-goal-progress {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+    
+    .no-goals-sidebar {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+    
+    /* Day Details Modal */
+    .day-details-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 1rem;
+    }
+    
+    .day-details-modal.active {
+      display: flex;
+    }
+    
+    .day-details-content {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 500px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      position: relative;
+    }
+    
+    .day-details-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid var(--border);
+    }
+    
+    .day-details-header h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin: 0;
+    }
+    
+    .close-modal {
+      background: transparent;
+      border: none;
+      font-size: 2rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }
+    
+    .close-modal:hover {
+      background: var(--bg);
+      color: var(--primary);
+    }
+    
+    .completion-item,
+    .deadline-item,
+    .target-item {
+      background: var(--bg);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+    }
+    
+    .completion-item {
+      border-left: 4px solid var(--success);
+    }
+    
+    .deadline-item {
+      border-left: 4px solid var(--deadline-red);
+    }
+    
+    .target-item {
+      border-left: 4px solid var(--target-yellow);
+    }
+    
+    .section-divider {
+      margin: 1.5rem 0;
+      border-top: 2px solid var(--border);
+    }
+    
+    .section-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+    }
+    
+    .no-completions {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+    }
+    
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    @keyframes fadeInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 2px 20px var(--shadow);
+      }
+      50% {
+        box-shadow: 0 8px 40px rgba(244, 162, 97, 0.4);
+        transform: scale(1.02);
+      }
+    }
+    
+    @keyframes fadeOut {
+      from {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+    }
+    
+    /* Mobile Responsive */
+    @media (max-width: 968px) {
+      .calendar-planner-layout {
+        grid-template-columns: 1fr;
+      }
+      
+      .calendar-container {
+        padding: 1rem;
+        width: 100%;
+        overflow-x: hidden;
+      }
+      
+      .calendar-grid {
+        width: 100%;
+        margin: 0 auto;
+      }
+      
+      .goals-sidebar {
+        padding: 1rem;
+      }
+    }
+    
+    @media (max-width: 640px) {
+      h1 { font-size: 2.5rem; }
+      .tabs { gap: 0.25rem; }
+      .tab { padding: 0.65rem 0.75rem; font-size: 0.85rem; }
+      .goal-title { font-size: 1rem; }
+      
+      .container {
+        padding: 0;
+      }
+      
+      .calendar-container {
+        padding: 0.75rem;
+        border-radius: 0;
+        margin: 0;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      
+      .calendar-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+      }
+      
+      .calendar-header h2 {
+        font-size: 1.5rem;
+        text-align: center;
+      }
+      
+      .calendar-nav {
+        justify-content: center;
+      }
+      
+      .calendar-grid {
+        gap: 0.25rem;
+        width: 100%;
+      }
+      
+      .calendar-day {
+        font-size: 0.75rem;
+        padding: 0.2rem;
+      }
+      
+      .calendar-day-number {
+        font-size: 0.75rem;
+      }
+      
+      .deadline-badge {
+        font-size: 0.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Goal Tracker</h1>
+      <p class="subtitle">Set goals, track objectives, and achieve success</p>
+    </header>
+    
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('goals')">Goals</button>
+      <button class="tab" onclick="switchTab('todo')">Today's To-Do</button>
+      <button class="tab" onclick="switchTab('calendar')">Calendar</button>
+      <button class="tab" onclick="switchTab('archive')">Archive</button>
+    </div>
+    
+    <!-- GOALS TAB -->
+    <div id="goals-tab" class="tab-content active">
+      <div class="add-goal-section collapsed" id="addGoalSection">
+        <div class="add-goal-header" onclick="toggleAddGoalSection()">
+          <h2>+ Create New Goal</h2>
+          <span class="expand-icon">▼</span>
+        </div>
+        <div class="add-goal-content">
+          <form id="goalForm">
+            <div class="form-group">
+              <label for="goalTitle">Goal Title</label>
+              <input type="text" id="goalTitle" required placeholder="e.g., Launch my online business">
+            </div>
+            
+            <div class="form-group">
+              <label for="goalDeadline">Deadline (Optional)</label>
+              <input type="date" id="goalDeadline">
+            </div>
+            
+            <div class="form-group">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; text-transform: none;">
+                <input type="checkbox" id="isBooleanGoal" onchange="toggleObjectivesSection()" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary);">
+                <span>Simple Yes/No Goal (no objectives needed)</span>
+              </label>
+            </div>
+            
+            <div class="form-group" id="objectivesFormGroup">
+              <label>Objectives (Optional)</label>
+              <div id="objectivesList" class="objectives-list"></div>
+              <button type="button" class="btn btn-secondary" onclick="addObjectiveInput()">+ Add Objective</button>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Create Goal</button>
+          </form>
+        </div>
+      </div>
+      
+      <div id="goalsContainer"></div>
+    </div>
+    
+    <!-- TODAY'S TO-DO TAB -->
+    <div id="todo-tab" class="tab-content">
+      <div class="daily-planner">
+        <h2>Today's To-Do List</h2>
+        
+        <div class="planner-section">
+          <h3>Today's Tasks (<span id="todayDate"></span>)</h3>
+          <div class="daily-task-list" id="dailyTaskList"></div>
+        </div>
+        
+        <div class="planner-section">
+          <h3>Add Quick Task</h3>
+          <div style="display: flex; gap: 0.75rem;">
+            <input type="text" id="quickTaskInput" placeholder="Add a task not related to any goal..." style="flex: 1;">
+            <button class="btn btn-primary" onclick="addQuickTask()">Add</button>
+          </div>
+        </div>
+        
+        <div class="planner-section">
+          <h3>Add from Goals</h3>
+          <div class="objective-selector" id="objectiveSelector"></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- CALENDAR TAB -->
+    <div id="calendar-tab" class="tab-content">
+      <div class="calendar-planner-layout">
+        <div class="calendar-container">
+          <div class="calendar-header">
+            <h2>Calendar</h2>
+            <div class="calendar-nav">
+              <button onclick="changeMonth(-1)">‹</button>
+              <span id="currentMonth"></span>
+              <button onclick="changeMonth(1)">›</button>
+            </div>
+          </div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+        
+        <div class="goals-sidebar">
+          <h3>Goals by Deadline</h3>
+          <div id="goalsSidebarList"></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- ARCHIVE TAB -->
+    <div id="archive-tab" class="tab-content">
+      <div style="text-align: center; margin-bottom: 2rem;">
+        <h2 style="font-family: 'Cormorant Garamond', serif; font-size: 2.5rem; font-weight: 700; color: var(--primary); margin-bottom: 0.5rem;">Archived Goals</h2>
+        <p style="color: var(--text-muted);">Completed goals you've archived</p>
+      </div>
+      <div id="archivedGoalsContainer"></div>
+    </div>
+    
+    <!-- Day Details Modal -->
+    <div id="dayDetailsModal" class="day-details-modal" onclick="closeDayDetails(event)">
+      <div class="day-details-content" onclick="event.stopPropagation()">
+        <div class="day-details-header">
+          <h3 id="dayDetailsDate"></h3>
+          <button class="close-modal" onclick="closeDayDetails()">&times;</button>
+        </div>
+        <div id="dayDetailsContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let tempObjectives = [];
+    let currentCalendarDate = new Date();
+    let dailyTasks = [];
+    
+    // Initialize
+    addObjectiveInput();
+    loadGoals();
+    loadDailyTasks();
+    renderCalendar();
+    renderGoalsSidebar();
+    renderObjectiveSelector();
+    updateTodayDate();
+    
+    // TAB SWITCHING
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      event.target.classList.add('active');
+      
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      document.getElementById(`${tabName}-tab`).classList.add('active');
+      
+      if (tabName === 'todo') {
+        renderObjectiveSelector();
+        renderDailyTasks();
+      } else if (tabName === 'calendar') {
+        renderCalendar();
+        renderGoalsSidebar();
+      } else if (tabName === 'archive') {
+        loadArchivedGoals();
+      }
+    }
+    
+    // GOAL FORM
+    function toggleObjectivesSection() {
+      const isBoolean = document.getElementById('isBooleanGoal').checked;
+      document.getElementById('objectivesFormGroup').style.display = isBoolean ? 'none' : 'block';
+    }
+    
+    function addObjectiveInput() {
+      const list = document.getElementById('objectivesList');
+      const index = tempObjectives.length;
+      
+      const div = document.createElement('div');
+      div.className = 'objective-item';
+      div.innerHTML = `
+        <input type="text" placeholder="Enter an objective" data-index="${index}">
+        <button type="button" class="btn-remove" onclick="removeObjectiveInput(this)">×</button>
+      `;
+      
+      list.appendChild(div);
+      tempObjectives.push('');
+      div.querySelector('input').focus();
+      div.querySelector('input').addEventListener('input', (e) => {
+        tempObjectives[index] = e.target.value;
+      });
+    }
+    
+    function removeObjectiveInput(btn) {
+      const item = btn.parentElement;
+      const index = parseInt(item.querySelector('input').dataset.index);
+      tempObjectives.splice(index, 1);
+      item.remove();
+      document.querySelectorAll('#objectivesList input').forEach((input, i) => {
+        input.dataset.index = i;
+      });
+    }
+    
+    document.getElementById('goalForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      const title = document.getElementById('goalTitle').value.trim();
+      const deadline = document.getElementById('goalDeadline').value;
+      const isBoolean = document.getElementById('isBooleanGoal').checked;
+      const objectives = tempObjectives.filter(obj => obj.trim() !== '');
+      
+      const goal = {
+        id: Date.now().toString(),
+        title,
+        deadline: deadline || null,
+        isBoolean: isBoolean,
+        completed: false,
+        objectives: isBoolean ? [] : objectives.map(text => ({ text, completed: false })),
+        notes: '',
+        createdAt: new Date().toISOString()
+      };
+      
+      saveGoal(goal);
+      
+      document.getElementById('goalForm').reset();
+      document.getElementById('objectivesList').innerHTML = '';
+      document.getElementById('objectivesFormGroup').style.display = 'block';
+      tempObjectives = [];
+      addObjectiveInput();
+      document.getElementById('addGoalSection').classList.add('collapsed');
+      
+      loadGoals();
+    });
+    
+    function toggleAddGoalSection() {
+      document.getElementById('addGoalSection').classList.toggle('collapsed');
+    }
+    
+    // GOAL CRUD
+    function saveGoal(goal) {
+      try {
+        localStorage.setItem(`goal:${goal.id}`, JSON.stringify(goal));
+      } catch (error) {
+        console.error('Error saving goal:', error);
+        alert('Failed to save goal.');
+      }
+    }
+    
+    function loadGoals() {
+      try {
+        const goals = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('goal:')) {
+            const goalData = localStorage.getItem(key);
+            if (goalData) {
+              const goal = JSON.parse(goalData);
+              if (!goal.archived) goals.push(goal);
+            }
+          }
+        }
+        
+        if (goals.length === 0) {
+          showEmptyState();
+          return;
+        }
+        
+        goals.sort((a, b) => {
+          if (!a.deadline && !b.deadline) return 0;
+          if (!a.deadline) return 1;
+          if (!b.deadline) return -1;
+          return new Date(a.deadline) - new Date(b.deadline);
+        });
+        
+        displayGoals(goals);
+      } catch (error) {
+        console.error('Error loading goals:', error);
+        showEmptyState();
+      }
+    }
+    
+    function displayGoals(goals) {
+      const container = document.getElementById('goalsContainer');
+      container.innerHTML = goals.map(goal => renderGoalCard(goal, false)).join('');
+    }
+    
+    function renderGoalCard(goal, isArchived) {
+      const progress = goal.isBoolean 
+        ? (goal.completed ? 100 : 0)
+        : (goal.objectives.length > 0 ? (goal.objectives.filter(o => o.completed).length / goal.objectives.length * 100) : 0);
+      
+      const completedCount = goal.objectives.filter(o => o.completed).length;
+      const totalCount = goal.objectives.length;
+      
+      let deadlineText = '';
+      let isOverdue = false;
+      
+      if (goal.deadline) {
+        const [year, month, day] = goal.deadline.split('-');
+        const deadline = new Date(year, month - 1, day);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        isOverdue = deadline < today;
+        deadlineText = deadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+      
+      return `
+        <div class="goal-card collapsed" id="goal-${goal.id}">
+          <div class="goal-header" onclick="toggleGoalCard('${goal.id}')">
+            <h2 class="goal-title" ondblclick="event.stopPropagation(); editGoalTitle('${goal.id}')">${escapeHtml(goal.title)}</h2>
+            <div class="goal-header-right">
+              ${goal.isBoolean ? '<div class="boolean-goal-badge">Yes/No</div>' : ''}
+              ${progress === 100 ? '<div class="completed-badge">✓</div>' : ''}
+              ${goal.deadline ? 
+                `<div class="goal-deadline ${isOverdue ? 'overdue' : ''}" id="deadline-display-${goal.id}" onclick="event.stopPropagation(); editDeadlineInline('${goal.id}', '${goal.deadline}')">${deadlineText}</div>` : 
+                `<div class="goal-deadline" style="background: var(--text-muted);" id="deadline-display-${goal.id}" onclick="event.stopPropagation(); editDeadlineInline('${goal.id}', '')">None</div>`
+              }
+              <span class="expand-icon">▼</span>
+            </div>
+          </div>
+          
+          <div class="goal-content">
+            ${goal.isBoolean ? `
+              <div style="padding: 1rem 0;">
+                <label style="display: flex; align-items: center; gap: 1rem; cursor: pointer; padding: 1rem; background: var(--bg); border-radius: 8px;">
+                  <input type="checkbox" ${goal.completed ? 'checked' : ''} onchange="toggleBooleanGoal('${goal.id}')" style="width: 24px; height: 24px; cursor: pointer; accent-color: var(--success);">
+                  <span style="font-size: 1.05rem; font-weight: 500;">Mark as ${goal.completed ? 'Incomplete' : 'Complete'}</span>
+                </label>
+              </div>
+            ` : `
+              <div class="objectives-section">
+                <h3>Objectives (${completedCount}/${totalCount})</h3>
+                ${goal.objectives.length > 0 ? goal.objectives.map((obj, index) => `
+                  <div>
+                    <div class="objective-checkbox ${obj.completed ? 'completed' : ''}">
+                      <input type="checkbox" id="obj-${goal.id}-${index}" ${obj.completed ? 'checked' : ''} onchange="toggleObjective('${goal.id}', ${index})">
+                      <label for="obj-${goal.id}-${index}" ondblclick="event.preventDefault(); editObjectiveText('${goal.id}', ${index})">${escapeHtml(obj.text)}</label>
+                      <button class="target-date-toggle" onclick="toggleTargetDate('${goal.id}', ${index})">📅</button>
+                      <button class="btn-remove" onclick="removeObjective('${goal.id}', ${index})">×</button>
+                    </div>
+                    <div class="target-date-section" id="target-section-${goal.id}-${index}">
+                      <input type="date" id="target-${goal.id}-${index}" value="${obj.targetDate || ''}" onchange="saveObjectiveTarget('${goal.id}', ${index})" style="padding: 0.5rem; font-size: 0.85rem; border: 1px solid var(--border); border-radius: 6px; width: 200px;">
+                      <label style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.5rem;">Target date</label>
+                    </div>
+                  </div>
+                `).join('') : '<div style="color: var(--text-muted); font-style: italic; padding: 0.5rem 0;">No objectives yet</div>'}
+                
+                <div style="margin-top: 1rem;">
+                  <div style="display: flex; gap: 0.75rem;">
+                    <input type="text" id="new-objective-${goal.id}" placeholder="Add objective" style="flex: 1;" onkeypress="if(event.key==='Enter'){addObjective('${goal.id}'); event.preventDefault();}">
+                    <button class="btn btn-primary" onclick="addObjective('${goal.id}')" style="padding: 0.65rem 1.2rem;">Add</button>
+                  </div>
+                </div>
+              </div>
+            `}
+            
+            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+              <h3 style="font-size: 0.85rem; font-weight: 600; color: var(--primary); text-transform: uppercase; margin-bottom: 0.75rem;">Notes</h3>
+              <textarea id="notes-${goal.id}" placeholder="Add notes..." style="width: 100%; min-height: 80px; padding: 0.75rem; border: 2px solid var(--border); border-radius: 8px; font-size: 0.9rem; background: var(--bg); resize: vertical;" onblur="saveNotes('${goal.id}')">${escapeHtml(goal.notes || '')}</textarea>
+            </div>
+            
+            <div class="progress-bar">
+              <div class="progress-label">
+                <span>Progress</span>
+                <span id="progress-${goal.id}">${Math.round(progress)}%</span>
+              </div>
+              <div class="progress-track">
+                <div class="progress-fill" id="progress-fill-${goal.id}" style="width: ${progress}%"></div>
+              </div>
+            </div>
+            
+            ${!isArchived ? (progress === 100 ? '<button class="btn btn-secondary btn-archive" onclick="archiveGoal(\'' + goal.id + '\')">Archive</button>' : '') : ''}
+            ${isArchived ? '<button class="btn btn-secondary" onclick="unarchiveGoal(\'' + goal.id + '\')">Unarchive</button>' : ''}
+            <button class="btn btn-delete" onclick="${isArchived ? 'deleteGoalPermanently' : 'deleteGoal'}('${goal.id}')">Delete ${isArchived ? 'Permanently' : ''}</button>
+          </div>
+        </div>
+      `;
+    }
+    
+    function showEmptyState() {
+      document.getElementById('goalsContainer').innerHTML = `
+        <div class="empty-state">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+          </svg>
+          <p>No goals yet. Create your first goal!</p>
+        </div>
+      `;
+    }
+    
+    function toggleGoalCard(goalId) {
+      document.getElementById(`goal-${goalId}`).classList.toggle('collapsed');
+    }
+    
+    // BOOLEAN GOAL
+    function toggleBooleanGoal(goalId) {
+      try {
+        const goalData = localStorage.getItem(`goal:${goalId}`);
+        if (!goalData) return;
+        
+        const goal = JSON.parse(goalData);
+        goal.completed = !goal.completed;
+        
+        if (goal.completed) {
+          goal.completedDate = new Date().toISOString();
+        } else {
+          delete goal.completedDate;
+        }
+        
+        localStorage.setItem(`goal:${goalId}`, JSON.stringify(goal));
+        updateGoalCardProgress(goalId);
+      } catch (error) {
+        console.error('Error toggling boolean goal:', error);
+      }
+    }
+    
+    // OBJECTIVES
+    function toggleObjective(goalId, objectiveIndex) {
+      try {
+        const goalData = localStorage.getItem(`goal:${goalId}`);
+        if (!goalData) return;
+        
+        const goal = JSON.parse(goalData);
+        const wasCompleted = goal.objectives[objectiveIndex].completed;
+        goal.objectives[objectiveIndex].completed = !wasCompleted;
+        
+        if (!wasCompleted) {
+          goal.objectives[objectiveIndex].completedDate = new Date().toISOString();
+        } else {
+          delete goal.objectives[objectiveIndex].completedDate;
+        }
+        
+        localStorage.setItem(`goal:${goalId}`, JSON.stringify(goal));
+        
+        // Update the UI immediately
+        const checkbox = document.querySelector(`.objective-checkbox:has(#obj-${goalId}-${objectiveIndex})`);
+        if (checkbox) {
+          if (wasCompleted) {
+            checkbox.classList.remove('completed');
+          } else {
+            checkbox.classList.add('completed');
+          }
+        }
+        
+        updateGoalCardProgress(goalId);
+        
+        // Sync with daily tasks
+        syncObjectiveWithDailyTasks(goalId, objectiveIndex, !wasCompleted);
+      } catch (error) {
+        console.error('Error toggling objective:', error);
+      }
+    }
+    
+    function syncObjectiveWithDailyTasks(goalId, objectiveIndex, isCompleted) {
+      const objectiveId = `${goalId}-${objectiveIndex}`;
+      dailyTasks.forEach(task => {
+        if (task.objectiveId === objectiveId) {
+          task.completed = isCompleted;
+        }
+      });
+      saveDailyTasks();
+      if (document.getElementById('todo-tab').classList.contains('active')) {
+        renderDailyTasks();
+      }
+    }
+    
+    function updateGoalCardProgress(goalId) {
+      try {
+        const goalData = localStorage.getItem(`goal:${goalId}`);
+        if (!goalData) return;
+        
+        const goal = JSON.parse(goalData);
+        const progress = goal.isBoolean 
+          ? (goal.completed ? 100 : 0)
+          : (goal.objectives.length > 0 ? (goal.objectives.filter(o => o.completed).length / goal.objectives.length * 100) : 0);
+        
+        const card = document.getElementById(`goal-${goalId}`);
+        if (!card) return;
+        
+        const progressFill = document.getElementById(`progress-fill-${goalId}`);
+        const progressLabel = document.getElementById(`progress-${goalId}`);
+        const objectivesHeader = card.querySelector('.objectives-section h3');
+        
+        if (progressFill) progressFill.style.width = `${progress}%`;
+        if (progressLabel) progressLabel.textContent = `${Math.round(progress)}%`;
+        if (objectivesHeader) {
+          const completedCount = goal.objectives.filter(o => o.completed).length;
+          objectivesHeader.textContent = `Objectives (${completedCount}/${goal.objectives.length})`;
+        }
+        
+        let completedBadge = card.querySelector('.completed-badge');
+        const headerRight = card.querySelector('.goal-header-right');
+        
+        if (progress === 100 && !completedBadge) {
+          completedBadge = document.createElement('div');
+          completedBadge.className = 'completed-badge';
+          completedBadge.textContent = '✓';
+          headerRight.insertBefore(completedBadge, headerRight.children[goal.isBoolean ? 1 : 0]);
+          
+          const content = card.querySelector('.goal-content');
+          let archiveBtn = content.querySelector('.btn-archive');
+          if (!archiveBtn) {
+            archiveBtn = document.createElement('button');
+            archiveBtn.className = 'btn btn-secondary btn-archive';
+            archiveBtn.textContent = 'Archive';
+            archiveBtn.onclick = () => archiveGoal(goalId);
+            const deleteBtn = content.querySelector('.btn-delete');
+            deleteBtn.parentNode.insertBefore(archiveBtn, deleteBtn);
+          }
+        } else if (progress < 100 && completedBadge) {
+          completedBadge.remove();
+          const archiveBtn = card.querySelector('.btn-archive');
+          if (archiveBtn) archiveBtn.remove();
+        }
+      } catch (error) {
+        console.error('Error updating progress:', error);
+      }
+    }
+    
+    function addObjective(goalId) {
+      try {
+        const goalData = localStorage.getItem(`goal:${goalId}`);
+        if (!goalData) return;
+        
+        const goal = JSON.parse(goalData);
+        const newText = document.getElementById(`new-objective-${goalId}`).value.trim();
+        
+        if (!newText) {
+          alert('Please enter an objective');
+          return;
+        }
+        
+        goal.objectives.push({ text: newText, completed: false });
+        localStorage.setItem(`goal:${goalId}`, JSON.stringify(goal));
+        
+        document.getElementById(`new-objective-${goalId}`).value = '';
+        
+        // Refresh only this goal card instead of all goals
+        const card = document.getElementById(`goal-${goalId}`);
+        const wasCollapsed = card.classList.contains('collapsed');
+        loadGoals();
+        
+        // Restore collapsed state
+        setTimeout(() => {
+          const newCard = document.getElementById(`goal-${goalId}`);
+          if (newCard && !wasCollapsed) {
+            newCard.classList.remove('collapsed');
+          }
+        }, 50);
+      } catch (error) {
+        console.error('Error adding objective:', error);
+      }
+    }
+    
+    function editGoalTitle(goalId) {
+      const header = document.querySelector(`#goal-${goalId} .goal-title`);
+      const currentTitle = header.textContent;
+      
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = currentTitle;
+      input.style.cssText = 'font-family: inherit; font-size: inherit; font-weight: inherit; color: inherit; border: 2px solid var(--accent); border-radius: 6px; padding: 0.25rem 0.5rem; width: 100%;';
+      
+      header.replaceWith(input);
+      input.focus();
+      input.select();
+      
+      const saveTitle = () => {
+        const newTitle = input.value.trim();
+        if (!newTitle) {
+          input.value = currentTitle;
+          return;
+        }
+        
+        try {
+          const goalData = localStorage.getItem(`goal:${goalId}`);
+          if (goalData) {
+            const goal = JSON.parse(goalData);
+            goal.title = newTitle;
+            localStorage.setItem(`goal:${goalId}`, JSON.stringify(goal));
+            
+            const newHeader = document.createElement('h2');
+            newHeader.className = 'goal-title';
+            newHeader.textContent = newTitle;
+            newHeader.ondblclick = () => editGoalTitle(goalId);
+            input.replaceWith(newHeader);
+            
+            // Update sidebar if visible
+            if (document.getElementById('calendar-tab').classList.contains('active')) {
+              renderGoalsSidebar();
+            }
+          }
+        } catch (error) {
+          console.error('Error saving goal title:', error);
+        }
+      };
+      
+      input.onblur = saveTitle;
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter') saveTitle();
+        if (e.key === 'Escape') {
+          input.value = currentTitle;
+          saveTitle();
+        }
+      };
+    }
+    
+    function editObjectiveText(goalId, objectiveIndex) {
+      const label = document.querySelector(`label[for="obj-${goalId}-${objectiveIndex}"]`);
+      const currentText = label.textContent;
+      
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = currentText;
+      input.style.cssText = 'flex: 1; font-size: inherit; border: 2px solid var(--accent); border-radius: 6px; padding: 0.25rem 0.5rem;';
+      
+      label.replaceWith(input);
+      input.focus();
+      input.select();
+      
+      const saveText = () => {
+        const newText = input.value.trim();
+        if (!newText) {
+          input.value = currentText;
+          return;
+        }
+        
+        try {
+          const goalData = localStorage.getItem(`goal:${goalId}`);
+          if (goalData) {
+            const goal = JSON.parse(goalData);
+            goal.objectives[objectiveIndex].text = newText;
+            localStorage.setItem(`goal:${goalId}`, JSON.stringify(goal));
+            
+            const newLabel = document.createElement('label');
+            newLabel.htmlFor = `obj-${goalId}-${objectiveIndex}`;
+            newLabel.textContent = newText;
+            newLabel.style.flex = '1';
+            newLabel.style.cursor = 'pointer';
+            newLabel.style.fontSize = '0.95rem';
+            newLabel.ondblclick = () => editObjectiveText(goalId, objectiveIndex);
+            input.replaceWith(newLabel);
+            
+            // Update daily tasks if needed
+            const objectiveId = `${goalId}-${objectiveIndex}`;
+            dailyTasks.forEach(task => {
+              if (task.objectiveId === objectiveId) {
+                task.objectiveText = newText;
+              }
+            });
+            saveDailyTasks();
+            
+            if (document.getElementById('todo-tab').classList.contains('active')) {
+              renderDailyTasks();
+            }
+          }
+        } catch (error) {
+          console.error('Error saving objective text:', error);
+        }
+      };
+      
+      input.onblur = saveText;
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter') saveText();
+        if (e.key === 'Escape') {
+          input.value = currentText;
+          saveText();
+        }
+      };
+    }
+    
+    function removeObjective(goalId, objectiveIndex) {
+      if (!confirm('Remove this objective?')) return;
+      
+      try {
+        const goalData = localStorage.getItem(`goal:${goalId}`);
+        if (!goalData) return;
+        
+        const goal = JSON.parse(goalData);
+        goal.objectives.splice(objectiveIndex, 1);
+        
+        localStorage.setItem(`goal:${goalId}`, JSON.stringify(goal));
+        loadGoals();
+      } catch (error) {
+        console.error('Error removing objective:', error);
+      }
+    }
+    
+    function toggleTargetDate(goalId, objectiveIndex) {
+      const section = document.getElementById(`target-section-${goalId}-${objectiveIndex}`);
+      section.classList.toggle('show');
+      if (section.classList.contains('show')) {
+        document.getElementById(`target-${goalId}-${objectiveIndex}`).focus();
+      }
+    }
+    
+    function saveObjectiveTarget(goalId, objectiveIndex) {
+      try {
+        const goalData = localStorage.getItem(`goal:${goalId}`);
+        if (!goalData) return;
+        
+        const goal = JSON.parse(goalData);
+        const targetDate = document.getElementById(`target-${goalId}-${objectiveIndex}`).value;
+        
+        goal.objectives[objectiveIndex].targetDate = targetDate || null;
+        localStorage.setItem(`goal:${goalId}`, JSON.stringify(goal));
+        
+        if (document.getElementById('calendar-tab').classList.contains('active')) {
+          renderCalendar();
+        }
+      } catch (error) {
+        console.error('Error saving target date:', error);
+      }
+    }
+    
+    // DEADLINE EDITING
+    function editDeadlineInline(goalId, currentDeadline) {
+      const deadlineDisplay = document.getElementById(`deadline-display-${goalId}`);
+      if (deadlineDisplay.classList.contains('editing')) return;
+      
+      deadlineDisplay.classList.add('editing');
+      deadlineDisplay.innerHTML = `<input type="date" id="deadline-edit-${goalId}" value="${currentDeadline || ''}" style="padding: 0.3rem 0.6rem; border: 2px solid var(--accent); border-radius: 5px; font-size: 0.7rem; font-weight: 600; background: white; color: var(--text);">`;
+      
+      const input = document.getElementById(`deadline-edit-${goalId}`);
+      input.focus();
+      input.addEventListener('blur', () => saveDeadlineInline(goalId));
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') input.blur();
+      });
+    }
+    
+    function saveDeadlineInline(goalId) {
+      const input = document.getElementById(`deadline-edit-${goalId}`);
+      if (!input) return;
+      
+      const newDeadline = input.value;
+      
+      try {
+        const goalData = localStorage.getItem(`goal:${goalId}`);
+        if (!goalData) return;
+        
+        const goal = JSON.parse(goalData);
+        goal.deadline = newDeadline || null;
+        localStorage.setItem(`goal:${goalId}`, JSON.stringify(goal));
+        
+        loadGoals();
+        
+        if (document.getElementById('calendar-tab').classList.contains('active')) {
+          renderCalendar();
+          renderGoalsSidebar();
+        }
+      } catch (error) {
+        console.error('Error saving deadline:', error);
+      }
+    }
+    
+    function saveNotes(goalId) {
+      try {
+        const goalData = localStorage.getItem(`goal:${goalId}`);
+        if (!goalData) return;
+        
+        const goal = JSON.parse(goalData);
+        const notes = document.getElementById(`notes-${goalId}`).value;
+        goal.notes = notes;
+        localStorage.setItem(`goal:${goalId}`, JSON.stringify(goal));
+      } catch (error) {
+        console.error('Error saving notes:', error);
+      }
+    }
+    
+    // ARCHIVE
+    function archiveGoal(goalId) {
+      if (!confirm('Archive this completed goal?')) return;
+      
+      try {
+        const goalData = localStorage.getItem(`goal:${goalId}`);
+        if (!goalData) return;
+        
+        const goal = JSON.parse(goalData);
+        goal.archived = true;
+        localStorage.setItem(`goal:${goalId}`, JSON.stringify(goal));
+        
+        const card = document.getElementById(`goal-${goalId}`);
+        if (card) {
+          card.style.animation = 'fadeOut 0.3s ease-out';
+          setTimeout(() => loadGoals(), 300);
+        } else {
+          loadGoals();
+        }
+      } catch (error) {
+        console.error('Error archiving goal:', error);
+      }
+    }
+    
+    function loadArchivedGoals() {
+      try {
+        const goals = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('goal:')) {
+            const goalData = localStorage.getItem(key);
+            if (goalData) {
+              const goal = JSON.parse(goalData);
+              if (goal.archived) goals.push(goal);
+            }
+          }
+        }
+        
+        const container = document.getElementById('archivedGoalsContainer');
+        if (goals.length === 0) {
+          container.innerHTML = '<div class="empty-state"><p>No archived goals</p></div>';
+          return;
+        }
+        
+        container.innerHTML = goals.map(goal => renderGoalCard(goal, true)).join('');
+      } catch (error) {
+        console.error('Error loading archived goals:', error);
+      }
+    }
+    
+    function unarchiveGoal(goalId) {
+      try {
+        const goalData = localStorage.getItem(`goal:${goalId}`);
+        if (!goalData) return;
+        
+        const goal = JSON.parse(goalData);
+        delete goal.archived;
+        localStorage.setItem(`goal:${goalId}`, JSON.stringify(goal));
+        
+        loadArchivedGoals();
+        loadGoals(); // Also refresh the goals tab so it appears there
+      } catch (error) {
+        console.error('Error unarchiving goal:', error);
+      }
+    }
+    
+    function deleteGoal(goalId) {
+      if (!confirm('Delete this goal?')) return;
+      
+      try {
+        localStorage.removeItem(`goal:${goalId}`);
+        loadGoals();
+      } catch (error) {
+        console.error('Error deleting goal:', error);
+      }
+    }
+    
+    function deleteGoalPermanently(goalId) {
+      if (!confirm('Permanently delete this goal? This cannot be undone.')) return;
+      
+      try {
+        localStorage.removeItem(`goal:${goalId}`);
+        loadArchivedGoals();
+      } catch (error) {
+        console.error('Error deleting goal:', error);
+      }
+    }
+    
+    // TODAY'S TO-DO
+    function updateTodayDate() {
+      const today = new Date();
+      const dateStr = today.toLocaleDateString('en-US', { 
+        weekday: 'long',
+        month: 'long', 
+        day: 'numeric',
+        year: 'numeric'
+      });
+      document.getElementById('todayDate').textContent = dateStr;
+    }
+    
+    function addQuickTask() {
+      const input = document.getElementById('quickTaskInput');
+      const taskText = input.value.trim();
+      
+      if (!taskText) {
+        alert('Please enter a task');
+        return;
+      }
+      
+      const todayDateKey = formatDateKey(new Date());
+      dailyTasks.push({
+        id: Date.now().toString(),
+        objectiveId: null,
+        goalId: null,
+        objectiveText: taskText,
+        goalTitle: 'Quick Task',
+        date: todayDateKey,
+        completed: false,
+        isQuickTask: true
+      });
+      
+      saveDailyTasks();
+      input.value = '';
+      renderDailyTasks();
+    }
+    
+    function renderObjectiveSelector() {
+      const container = document.getElementById('objectiveSelector');
+      
+      try {
+        const goals = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('goal:')) {
+            const goalData = localStorage.getItem(key);
+            if (goalData) {
+              const goal = JSON.parse(goalData);
+              if (!goal.archived) goals.push(goal);
+            }
+          }
+        }
+        
+        if (goals.length === 0) {
+          container.innerHTML = '<div class="empty-planner">Create goals to add tasks.</div>';
+          return;
+        }
+        
+        // Sort by deadline (same as Goals tab)
+        goals.sort((a, b) => {
+          if (!a.deadline && !b.deadline) return 0;
+          if (!a.deadline) return 1;
+          if (!b.deadline) return -1;
+          return new Date(a.deadline) - new Date(b.deadline);
+        });
+        
+        const todayDateKey = formatDateKey(new Date());
+        const todaysTasks = dailyTasks.filter(task => task.date === todayDateKey);
+        const addedIds = new Set(todaysTasks.map(task => task.objectiveId));
+        
+        let html = '';
+        
+        goals.forEach(goal => {
+          if (goal.isBoolean) {
+            if (goal.completed) return;
+            
+            const objId = `boolean-${goal.id}`;
+            const isInList = addedIds.has(objId);
+            
+            html += `
+              <div class="goal-objectives-group">
+                <div class="goal-objectives-title">${escapeHtml(goal.title)} (Yes/No Goal)</div>
+                <div class="selectable-objective ${isInList ? 'in-list' : ''}" onclick="toggleDailyTask('${goal.id}', -1, '${escapeHtml(goal.title)}', '${escapeHtml(goal.title)}', true)">
+                  <span>${isInList ? '✓ ' : ''}Complete this goal</span>
+                </div>
+              </div>
+            `;
+          } else {
+            const incompleteObjectives = goal.objectives
+              .map((obj, index) => ({ ...obj, index, goalId: goal.id, goalTitle: goal.title }))
+              .filter(obj => !obj.completed);
+            
+            if (incompleteObjectives.length === 0) return;
+            
+            html += `
+              <div class="goal-objectives-group">
+                <div class="goal-objectives-title">${escapeHtml(goal.title)}</div>
+                ${incompleteObjectives.map(obj => {
+                  const objId = `${goal.id}-${obj.index}`;
+                  const isInList = addedIds.has(objId);
+                  return `
+                    <div class="selectable-objective ${isInList ? 'in-list' : ''}" onclick="toggleDailyTask('${goal.id}', ${obj.index}, '${escapeHtml(goal.title)}', '${escapeHtml(obj.text)}', false)">
+                      <span>${isInList ? '✓ ' : ''}${escapeHtml(obj.text)}</span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `;
+          }
+        });
+        
+        container.innerHTML = html || '<div class="empty-planner">All objectives completed!</div>';
+      } catch (error) {
+        console.error('Error rendering objective selector:', error);
+      }
+    }
+    
+    function toggleDailyTask(goalId, objectiveIndex, goalTitle, objectiveText, isBoolean) {
+      const todayDateKey = formatDateKey(new Date());
+      const objectiveId = isBoolean ? `boolean-${goalId}` : `${goalId}-${objectiveIndex}`;
+      
+      const existingIndex = dailyTasks.findIndex(task => 
+        task.objectiveId === objectiveId && task.date === todayDateKey
+      );
+      
+      if (existingIndex >= 0) {
+        // Remove from list
+        dailyTasks.splice(existingIndex, 1);
+      } else {
+        // Add to list
+        dailyTasks.push({
+          id: Date.now().toString(),
+          objectiveId: objectiveId,
+          goalId: goalId,
+          objectiveIndex: objectiveIndex,
+          goalTitle: goalTitle,
+          objectiveText: objectiveText,
+          date: todayDateKey,
+          completed: false,
+          isBoolean: isBoolean
+        });
+      }
+      
+      saveDailyTasks();
+      
+      // Force re-render both sections
+      setTimeout(() => {
+        renderObjectiveSelector();
+        renderDailyTasks();
+      }, 50);
+    }
+    
+    function renderDailyTasks() {
+      const container = document.getElementById('dailyTaskList');
+      const todayDateKey = formatDateKey(new Date());
+      const todaysTasks = dailyTasks.filter(task => task.date === todayDateKey);
+      
+      if (todaysTasks.length === 0) {
+        container.innerHTML = '<div class="empty-planner">No tasks for today.</div>';
+        return;
+      }
+      
+      container.innerHTML = todaysTasks.map(task => `
+        <div class="daily-task ${task.completed ? 'completed' : ''}">
+          <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleDailyTaskCompletion('${task.id}')">
+          <div class="daily-task-text">
+            <div class="daily-task-goal">from ${escapeHtml(task.goalTitle)}</div>
+            <div class="daily-task-objective">${escapeHtml(task.objectiveText)}</div>
+          </div>
+          <button class="btn-remove" onclick="removeDailyTask('${task.id}')" style="opacity: 1; margin-left: auto;">×</button>
+        </div>
+      `).join('');
+    }
+    
+    function removeDailyTask(taskId) {
+      const taskIndex = dailyTasks.findIndex(t => t.id === taskId);
+      if (taskIndex >= 0) {
+        dailyTasks.splice(taskIndex, 1);
+        saveDailyTasks();
+        renderDailyTasks();
+        renderObjectiveSelector(); // Update the selector to show it's no longer in list
+      }
+    }
+    
+    function toggleDailyTaskCompletion(taskId) {
+      const task = dailyTasks.find(t => t.id === taskId);
+      if (!task) return;
+      
+      task.completed = !task.completed;
+      
+      if (!task.isQuickTask) {
+        if (task.isBoolean) {
+          // Sync with boolean goal
+          try {
+            const goalData = localStorage.getItem(`goal:${task.goalId}`);
+            if (goalData) {
+              const goal = JSON.parse(goalData);
+              goal.completed = task.completed;
+              if (task.completed) {
+                goal.completedDate = new Date().toISOString();
+              } else {
+                delete goal.completedDate;
+              }
+              localStorage.setItem(`goal:${task.goalId}`, JSON.stringify(goal));
+              
+              if (document.getElementById('goals-tab').classList.contains('active')) {
+                updateGoalCardProgress(task.goalId);
+              }
+            }
+          } catch (error) {
+            console.error('Error syncing boolean goal:', error);
+          }
+        } else {
+          // Sync with objective
+          try {
+            const goalData = localStorage.getItem(`goal:${task.goalId}`);
+            if (goalData) {
+              const goal = JSON.parse(goalData);
+              goal.objectives[task.objectiveIndex].completed = task.completed;
+              
+              if (task.completed) {
+                goal.objectives[task.objectiveIndex].completedDate = new Date().toISOString();
+              } else {
+                delete goal.objectives[task.objectiveIndex].completedDate;
+              }
+              
+              localStorage.setItem(`goal:${task.goalId}`, JSON.stringify(goal));
+              
+              // Update UI on Goals tab if visible
+              if (document.getElementById('goals-tab').classList.contains('active')) {
+                const checkbox = document.querySelector(`.objective-checkbox:has(#obj-${task.goalId}-${task.objectiveIndex})`);
+                if (checkbox) {
+                  if (task.completed) {
+                    checkbox.classList.add('completed');
+                  } else {
+                    checkbox.classList.remove('completed');
+                  }
+                }
+                updateGoalCardProgress(task.goalId);
+              }
+            }
+          } catch (error) {
+            console.error('Error syncing objective:', error);
+          }
+        }
+      }
+      
+      saveDailyTasks();
+      renderDailyTasks();
+      renderCalendar();
+    }
+    
+    function markObjectiveCompleted(goalId, objectiveIndex) {
+      try {
+        const goalData = localStorage.getItem(`goal:${goalId}`);
+        if (!goalData) return;
+        
+        const goal = JSON.parse(goalData);
+        if (!goal.objectives[objectiveIndex].completed) {
+          goal.objectives[objectiveIndex].completed = true;
+          goal.objectives[objectiveIndex].completedDate = new Date().toISOString();
+          localStorage.setItem(`goal:${goalId}`, JSON.stringify(goal));
+          renderObjectiveSelector();
+        }
+      } catch (error) {
+        console.error('Error marking objective as completed:', error);
+      }
+    }
+    
+    function saveDailyTasks() {
+      try {
+        localStorage.setItem('dailyTasks', JSON.stringify(dailyTasks));
+      } catch (error) {
+        console.error('Error saving daily tasks:', error);
+      }
+    }
+    
+    function loadDailyTasks() {
+      try {
+        const data = localStorage.getItem('dailyTasks');
+        if (data) dailyTasks = JSON.parse(data);
+      } catch (error) {
+        console.error('Error loading daily tasks:', error);
+        dailyTasks = [];
+      }
+    }
+    
+    // CALENDAR
+    function changeMonth(delta) {
+      currentCalendarDate.setMonth(currentCalendarDate.getMonth() + delta);
+      renderCalendar();
+    }
+    
+    function renderCalendar() {
+      const year = currentCalendarDate.getFullYear();
+      const month = currentCalendarDate.getMonth();
+      
+      const monthName = currentCalendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      document.getElementById('currentMonth').textContent = monthName;
+      
+      const completions = getCompletionsByDate();
+      const deadlines = getDeadlinesByDate();
+      const targets = getTargetsByDate();
+      
+      const grid = document.getElementById('calendarGrid');
+      grid.innerHTML = '';
+      
+      const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      dayHeaders.forEach(day => {
+        const header = document.createElement('div');
+        header.className = 'calendar-day-header';
+        header.textContent = day;
+        grid.appendChild(header);
+      });
+      
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const daysInPrevMonth = new Date(year, month, 0).getDate();
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      for (let i = firstDay - 1; i >= 0; i--) {
+        const day = daysInPrevMonth - i;
+        grid.appendChild(createCalendarDay(day, true, null, false, null, null, null));
+      }
+      
+      for (let day = 1; day <= daysInMonth; day++) {
+        const currentDate = new Date(year, month, day);
+        currentDate.setHours(0, 0, 0, 0);
+        const dateKey = formatDateKey(currentDate);
+        const isToday = currentDate.getTime() === today.getTime();
+        const dayCompletions = completions[dateKey] || [];
+        const dayDeadlines = deadlines[dateKey] || [];
+        const dayTargets = targets[dateKey] || [];
+        
+        grid.appendChild(createCalendarDay(day, false, dayCompletions, isToday, currentDate, dayDeadlines, dayTargets));
+      }
+      
+      const totalCells = firstDay + daysInMonth;
+      const remainingCells = 42 - totalCells;
+      for (let day = 1; day <= remainingCells; day++) {
+        grid.appendChild(createCalendarDay(day, true, null, false, null, null, null));
+      }
+    }
+    
+    function createCalendarDay(dayNumber, isOtherMonth, completions, isToday, fullDate, deadlines, targets) {
+      const cell = document.createElement('div');
+      cell.className = 'calendar-day';
+      
+      if (isOtherMonth) cell.classList.add('other-month');
+      if (isToday) cell.classList.add('today');
+      if (completions && completions.length > 0) cell.classList.add('has-completions');
+      if (deadlines && deadlines.length > 0) cell.classList.add('has-deadline');
+      if (targets && targets.length > 0) cell.classList.add('has-target');
+      
+      if ((completions && completions.length > 0) || (deadlines && deadlines.length > 0) || (targets && targets.length > 0)) {
+        cell.onclick = () => showDayDetails(fullDate, completions || [], deadlines || [], targets || []);
+        cell.style.cursor = 'pointer';
+      }
+      
+      const number = document.createElement('div');
+      number.className = 'calendar-day-number';
+      number.textContent = dayNumber;
+      cell.appendChild(number);
+      
+      if (deadlines && deadlines.length > 0) {
+        const badge = document.createElement('div');
+        badge.className = 'deadline-badge red';
+        badge.textContent = deadlines.length === 1 ? '🔴' : `🔴${deadlines.length}`;
+        cell.appendChild(badge);
+      }
+      
+      if (targets && targets.length > 0) {
+        const badge = document.createElement('div');
+        badge.className = 'deadline-badge yellow';
+        badge.textContent = targets.length === 1 ? '🟡' : `🟡${targets.length}`;
+        cell.appendChild(badge);
+      }
+      
+      if (completions && completions.length > 0) {
+        const dots = document.createElement('div');
+        dots.className = 'calendar-day-dots';
+        for (let i = 0; i < Math.min(completions.length, 3); i++) {
+          const dot = document.createElement('div');
+          dot.className = 'calendar-day-dot';
+          dots.appendChild(dot);
+        }
+        cell.appendChild(dots);
+      }
+      
+      return cell;
+    }
+    
+    function getCompletionsByDate() {
+      const completions = {};
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('goal:')) {
+            const goalData = localStorage.getItem(key);
+            if (goalData) {
+              const goal = JSON.parse(goalData);
+              
+              if (goal.isBoolean && goal.completed && goal.completedDate) {
+                const dateKey = goal.completedDate.split('T')[0];
+                if (!completions[dateKey]) completions[dateKey] = [];
+                completions[dateKey].push({
+                  goalTitle: goal.title,
+                  objectiveText: goal.title
+                });
+              }
+              
+              goal.objectives.forEach(obj => {
+                if (obj.completed && obj.completedDate) {
+                  const dateKey = obj.completedDate.split('T')[0];
+                  if (!completions[dateKey]) completions[dateKey] = [];
+                  completions[dateKey].push({
+                    goalTitle: goal.title,
+                    objectiveText: obj.text
+                  });
+                }
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error getting completions:', error);
+      }
+      return completions;
+    }
+    
+    function getDeadlinesByDate() {
+      const deadlines = {};
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('goal:')) {
+            const goalData = localStorage.getItem(key);
+            if (goalData) {
+              const goal = JSON.parse(goalData);
+              if (goal.deadline && !goal.archived) {
+                const dateKey = goal.deadline;
+                if (!deadlines[dateKey]) deadlines[dateKey] = [];
+                
+                const progress = goal.isBoolean 
+                  ? (goal.completed ? 100 : 0)
+                  : (goal.objectives.length > 0 ? Math.round((goal.objectives.filter(o => o.completed).length / goal.objectives.length) * 100) : 0);
+                
+                deadlines[dateKey].push({
+                  goalTitle: goal.title,
+                  completedCount: goal.isBoolean ? (goal.completed ? 1 : 0) : goal.objectives.filter(o => o.completed).length,
+                  totalCount: goal.isBoolean ? 1 : goal.objectives.length,
+                  progress: progress
+                });
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error getting deadlines:', error);
+      }
+      return deadlines;
+    }
+    
+    function getTargetsByDate() {
+      const targets = {};
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('goal:')) {
+            const goalData = localStorage.getItem(key);
+            if (goalData) {
+              const goal = JSON.parse(goalData);
+              goal.objectives.forEach(obj => {
+                if (obj.targetDate) {
+                  const dateKey = obj.targetDate;
+                  if (!targets[dateKey]) targets[dateKey] = [];
+                  targets[dateKey].push({
+                    goalTitle: goal.title,
+                    objectiveText: obj.text,
+                    completed: obj.completed || false
+                  });
+                }
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error getting targets:', error);
+      }
+      return targets;
+    }
+    
+    function showDayDetails(date, completions, deadlines, targets) {
+      const modal = document.getElementById('dayDetailsModal');
+      const dateHeader = document.getElementById('dayDetailsDate');
+      const content = document.getElementById('dayDetailsContent');
+      
+      const dateStr = date.toLocaleDateString('en-US', { 
+        weekday: 'long',
+        month: 'long', 
+        day: 'numeric',
+        year: 'numeric'
+      });
+      
+      dateHeader.textContent = dateStr;
+      
+      let html = '';
+      let sectionsAdded = 0;
+      
+      if (deadlines && deadlines.length > 0) {
+        html += '<div class="section-title">🔴 Goal Deadlines</div>';
+        html += deadlines.map(d => `
+          <div class="deadline-item">
+            <div style="font-weight: 600; margin-bottom: 0.25rem;">${escapeHtml(d.goalTitle)}</div>
+            <div style="font-size: 0.875rem; color: var(--text-muted);">Progress: ${d.completedCount}/${d.totalCount} (${d.progress}%)</div>
+          </div>
+        `).join('');
+        sectionsAdded++;
+      }
+      
+      if (sectionsAdded > 0 && targets && targets.length > 0) {
+        html += '<div class="section-divider"></div>';
+      }
+      
+      if (targets && targets.length > 0) {
+        html += '<div class="section-title">🟡 Objective Targets</div>';
+        html += targets.map(t => `
+          <div class="target-item">
+            <div style="font-size: 0.9rem; margin-bottom: 0.25rem;">${escapeHtml(t.objectiveText)}</div>
+            <div style="font-size: 0.875rem; color: var(--text-muted);">from: ${escapeHtml(t.goalTitle)}${t.completed ? ' ✓' : ''}</div>
+          </div>
+        `).join('');
+        sectionsAdded++;
+      }
+      
+      if (sectionsAdded > 0 && completions && completions.length > 0) {
+        html += '<div class="section-divider"></div>';
+      }
+      
+      if (completions && completions.length > 0) {
+        html += '<div class="section-title">✅ Completed</div>';
+        html += completions.map(c => `
+          <div class="completion-item">
+            <div style="font-weight: 600; margin-bottom: 0.25rem;">${escapeHtml(c.objectiveText)}</div>
+            <div style="font-size: 0.875rem; color: var(--text-muted);">from: ${escapeHtml(c.goalTitle)}</div>
+          </div>
+        `).join('');
+      }
+      
+      if (sectionsAdded === 0 && (!completions || completions.length === 0)) {
+        html = '<div class="no-completions">Nothing scheduled.</div>';
+      }
+      
+      content.innerHTML = html;
+      modal.classList.add('active');
+    }
+    
+    function closeDayDetails(event) {
+      if (event && event.target !== document.getElementById('dayDetailsModal')) return;
+      document.getElementById('dayDetailsModal').classList.remove('active');
+    }
+    
+    function renderGoalsSidebar() {
+      const container = document.getElementById('goalsSidebarList');
+      
+      try {
+        const goals = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('goal:')) {
+            const goalData = localStorage.getItem(key);
+            if (goalData) {
+              const goal = JSON.parse(goalData);
+              // Only show goals with deadlines
+              if (!goal.archived && goal.deadline) goals.push(goal);
+            }
+          }
+        }
+        
+        if (goals.length === 0) {
+          container.innerHTML = '<div class="no-goals-sidebar">No goals with deadlines</div>';
+          return;
+        }
+        
+        goals.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        container.innerHTML = goals.map(goal => {
+          const progress = goal.isBoolean 
+            ? (goal.completed ? 100 : 0)
+            : (goal.objectives.length > 0 ? Math.round((goal.objectives.filter(o => o.completed).length / goal.objectives.length) * 100) : 0);
+          
+          const [year, month, day] = goal.deadline.split('-');
+          const deadline = new Date(year, month - 1, day);
+          const isOverdue = deadline < today;
+          
+          const deadlineText = deadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          
+          const completedCount = goal.isBoolean ? (goal.completed ? 1 : 0) : goal.objectives.filter(o => o.completed).length;
+          const totalCount = goal.isBoolean ? 1 : goal.objectives.length;
+          
+          return `
+            <div class="sidebar-goal-item" onclick="scrollToGoal('${goal.id}')">
+              <div class="sidebar-goal-title">${escapeHtml(goal.title)}</div>
+              <div class="sidebar-goal-deadline ${isOverdue ? 'overdue' : ''}">🔴 ${deadlineText}</div>
+              <div class="sidebar-goal-progress">${progress}% (${completedCount}/${totalCount})</div>
+            </div>
+          `;
+        }).join('');
+      } catch (error) {
+        console.error('Error rendering goals sidebar:', error);
+      }
+    }
+    
+    function scrollToGoal(goalId) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.tab')[0].classList.add('active');
+      
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      document.getElementById('goals-tab').classList.add('active');
+      
+      setTimeout(() => {
+        const goalCard = document.getElementById(`goal-${goalId}`);
+        if (goalCard) {
+          goalCard.classList.remove('collapsed');
+          goalCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          goalCard.style.animation = 'none';
+          setTimeout(() => {
+            goalCard.style.animation = 'pulse 0.5s ease-out';
+          }, 10);
+        }
+      }, 100);
+    }
+    
+    function formatDateKey(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
