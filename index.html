@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
   <title>Goal Tracker</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Sans:wght@400;500;600&display=swap');
@@ -347,7 +347,7 @@
       display: block;
       font-weight: 600;
       margin-bottom: 0.4rem;
-      color: var(--primary);
+      color: var(--text);
       font-size: 0.85rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
@@ -479,7 +479,7 @@
     .objectives-section h3 {
       font-size: 0.875rem;
       font-weight: 600;
-      color: var(--primary);
+      color: var(--text);
       text-transform: uppercase;
       letter-spacing: 0.05em;
       margin-bottom: 0.75rem;
@@ -525,6 +525,7 @@
       flex: 1;
       cursor: pointer;
       font-size: 0.95rem;
+      color: var(--text);
     }
     
     .objective-checkbox .btn-remove,
@@ -625,7 +626,7 @@
     .planner-section h3 {
       font-size: 0.875rem;
       font-weight: 600;
-      color: var(--primary);
+      color: var(--text);
       text-transform: uppercase;
       letter-spacing: 0.05em;
       margin-bottom: 1rem;
@@ -640,11 +641,11 @@
     
     .daily-task {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 0.75rem;
       padding: 0.875rem;
       background: var(--surface);
-      border-radius: 8px;
+      border-radius: 2px;
       margin-bottom: 0.75rem;
       border: 1px solid var(--border);
       transition: all 0.2s ease;
@@ -652,33 +653,47 @@
     
     .daily-task:hover {
       transform: translateX(4px);
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--glow-red);
     }
     
     .daily-task.completed {
-      opacity: 0.6;
+      opacity: 0.5;
     }
     
     .daily-task input[type="checkbox"] {
       width: 20px;
       height: 20px;
       cursor: pointer;
-      accent-color: var(--success);
+      accent-color: var(--accent);
       flex-shrink: 0;
+      margin-top: 0.25rem;
     }
     
     .daily-task-text {
       flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
     }
     
-    .daily-task.completed .daily-task-text {
+    .daily-task-objective {
+      font-size: 0.95rem;
+      color: var(--text);
+      line-height: 1.4;
+    }
+    
+    .daily-task.completed .daily-task-objective {
       text-decoration: line-through;
       color: var(--text-muted);
     }
     
     .daily-task-goal {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      margin-top: 0.25rem;
+      font-size: 0.8rem;
+      color: var(--accent-light);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
     
     .objective-selector {
@@ -696,9 +711,11 @@
     
     .goal-objectives-title {
       font-weight: 600;
-      color: var(--primary);
+      color: var(--text);
       margin-bottom: 0.5rem;
       font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
     
     .selectable-objective {
@@ -713,18 +730,20 @@
       transition: all 0.2s ease;
       border: 2px solid transparent;
       font-size: 0.9rem;
+      color: var(--text);
     }
     
     .selectable-objective:hover {
       border-color: var(--accent);
-      background: var(--primary);
+      background: var(--primary-light);
       color: white;
     }
     
     .selectable-objective.in-list {
-      background: var(--bg);
-      opacity: 0.6;
-      border-color: var(--border);
+      background: var(--primary-light);
+      color: var(--accent-light);
+      border-color: var(--accent);
+      font-weight: 600;
     }
     
     .empty-planner {
@@ -1170,6 +1189,13 @@
       
       .calendar-container {
         padding: 1rem;
+        width: 100%;
+        overflow-x: hidden;
+      }
+      
+      .calendar-grid {
+        width: 100%;
+        margin: 0 auto;
       }
       
       .goals-sidebar {
@@ -1183,8 +1209,16 @@
       .tab { padding: 0.65rem 0.75rem; font-size: 0.85rem; }
       .goal-title { font-size: 1rem; }
       
+      .container {
+        padding: 0;
+      }
+      
       .calendar-container {
         padding: 0.75rem;
+        border-radius: 0;
+        margin: 0;
+        width: 100%;
+        box-sizing: border-box;
       }
       
       .calendar-header {
@@ -1202,13 +1236,22 @@
         justify-content: center;
       }
       
+      .calendar-grid {
+        gap: 0.25rem;
+        width: 100%;
+      }
+      
       .calendar-day {
-        font-size: 0.85rem;
-        padding: 0.25rem;
+        font-size: 0.75rem;
+        padding: 0.2rem;
       }
       
       .calendar-day-number {
-        font-size: 0.875rem;
+        font-size: 0.75rem;
+      }
+      
+      .deadline-badge {
+        font-size: 0.5rem;
       }
     }
   </style>
@@ -2185,8 +2228,10 @@
       );
       
       if (existingIndex >= 0) {
+        // Remove from list
         dailyTasks.splice(existingIndex, 1);
       } else {
+        // Add to list
         dailyTasks.push({
           id: Date.now().toString(),
           objectiveId: objectiveId,
@@ -2201,8 +2246,12 @@
       }
       
       saveDailyTasks();
-      renderObjectiveSelector();
-      renderDailyTasks();
+      
+      // Force re-render both sections
+      setTimeout(() => {
+        renderObjectiveSelector();
+        renderDailyTasks();
+      }, 50);
     }
     
     function renderDailyTasks() {
@@ -2219,8 +2268,8 @@
         <div class="daily-task ${task.completed ? 'completed' : ''}">
           <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleDailyTaskCompletion('${task.id}')">
           <div class="daily-task-text">
-            <div>${escapeHtml(task.objectiveText)}</div>
-            <div class="daily-task-goal">from: ${escapeHtml(task.goalTitle)}</div>
+            <div class="daily-task-goal">from ${escapeHtml(task.goalTitle)}</div>
+            <div class="daily-task-objective">${escapeHtml(task.objectiveText)}</div>
           </div>
           <button class="btn-remove" onclick="removeDailyTask('${task.id}')" style="opacity: 1; margin-left: auto;">×</button>
         </div>
