@@ -54,6 +54,10 @@ let openTimeTaskId = null;
 // this to map a click back to a task.
 let scheduledForDay = [];
 
+// The window the bar was last drawn against, so the ticker can tell when the
+// scale has shifted under it and the bar needs redrawing rather than nudging.
+let timelineRangeUsed = null;
+
 /* ---------------------------------------------------------------- storage */
 
 function goalKey(id) {
@@ -1182,6 +1186,8 @@ function renderDayTimeline(scheduled, now) {
   const el = document.getElementById('dayTimeline');
   const range = timelineRange(scheduled, now);
 
+  timelineRangeUsed = range;
+
   if (!range) {
     el.innerHTML = '';
     el.classList.add('empty');
@@ -1208,7 +1214,8 @@ function renderDayTimeline(scheduled, now) {
   }).join('');
 
   if (now) {
-    html += `<div class="timeline-now" id="timelineNow" style="top: ${pct(minutesOf(now))}%"></div>`;
+    html += `<div class="timeline-now" id="timelineNow" title="Now — ${formatTimeRange(now, null)}"
+      style="top: ${pct(minutesOf(now))}%"></div>`;
   }
 
   el.innerHTML = html;
@@ -1238,26 +1245,39 @@ function timelineJump(event) {
   const ratio = Math.min(Math.max((event.clientY - rect.top) / rect.height, 0), 1);
   const at = range.from + ratio * (range.to - range.from);
 
-  const containing = scheduledForDay.find(task => {
+  // Every block covering that moment, not just the first — overlapping work is
+  // exactly when you need to be shown all of it.
+  const containing = scheduledForDay.filter(task => {
     const from = minutesOf(task.start);
     const to = hasValidEnd(task) ? minutesOf(task.end) : from + STUB_BLOCK_MINUTES;
     return at >= from && at < to;
   });
 
-  const target = containing
-    || scheduledForDay.find(task => minutesOf(task.start) >= at)
-    || scheduledForDay[scheduledForDay.length - 1];
+  // Nothing runs at that moment, so fall back to whatever comes next.
+  const targets = containing.length > 0
+    ? containing
+    : [scheduledForDay.find(task => minutesOf(task.start) >= at)
+       || scheduledForDay[scheduledForDay.length - 1]].filter(Boolean);
 
-  if (target) scrollToTask(target.id);
+  if (targets.length === 0) return;
+
+  targets.forEach(task => pingTask(task.id));
+
+  // They're adjacent in the list, being sorted by start, so centring the
+  // earliest keeps the rest of the group in view.
+  const row = document.querySelector(`.daily-task[data-task-id="${targets[0].id}"]`);
+  if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-function scrollToTask(taskId) {
+function pingTask(taskId) {
   const row = document.querySelector(`.daily-task[data-task-id="${taskId}"]`);
   if (!row) return;
 
-  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // Removing the class then forcing a reflow restarts the animation, so a
+  // second click on the same spot flashes again instead of sitting inert.
   row.classList.remove('pinged');
-  requestAnimationFrame(() => row.classList.add('pinged'));
+  void row.offsetWidth;
+  row.classList.add('pinged');
 }
 
 function plannerIsToday() {
@@ -1272,11 +1292,21 @@ function refreshTimeStates() {
 
   const now = currentTimeKey();
   const range = timelineRange(scheduledForDay, now);
-  const marker = document.getElementById('timelineNow');
 
-  if (marker && range) {
-    const span = range.to - range.from;
-    marker.style.top = `${((minutesOf(now) - range.from) / span) * 100}%`;
+  // The window includes "now", so once the clock walks past the padding the
+  // scale itself grows. Moving only the marker would then measure it against a
+  // different scale than the blocks were drawn on, and everything would drift
+  // apart — so redraw the bar whenever the range changes.
+  if (range && timelineRangeUsed &&
+      (range.from !== timelineRangeUsed.from || range.to !== timelineRangeUsed.to)) {
+    renderDayTimeline(scheduledForDay, now);
+  } else {
+    const marker = document.getElementById('timelineNow');
+    if (marker && range) {
+      const span = range.to - range.from;
+      marker.style.top = `${((minutesOf(now) - range.from) / span) * 100}%`;
+      marker.title = `Now — ${formatTimeRange(now, null)}`;
+    }
   }
 
   scheduledForDay.forEach(task => {
