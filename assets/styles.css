@@ -1329,25 +1329,49 @@ textarea {
   opacity: 0.55;
 }
 
+/* Deliberately white rather than the theme red: every task block is red, and a
+   red ticker disappears into them. */
 .timeline-now {
   position: absolute;
   left: 0;
   right: 0;
   height: 2px;
-  background: var(--accent-light);
-  box-shadow: 0 0 8px var(--accent-light);
+  background: #fff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.95), 0 0 14px var(--accent-light);
   pointer-events: none;
-  z-index: 2;
+  z-index: 3;
 }
 
+/* The hash mark itself. */
 .timeline-now::before {
   content: '';
   position: absolute;
-  left: 0;
-  top: -3px;
-  border-left: 6px solid var(--accent-light);
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
+  left: 1px;
+  top: -4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.95);
+}
+
+/* A soft pulse so it reads as live rather than as another divider. */
+.timeline-now::after {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: -6px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  animation: now-pulse 2.4s ease-out infinite;
+}
+
+@keyframes now-pulse {
+  0%   { transform: scale(0.6); opacity: 0.9; }
+  70%  { transform: scale(1.6); opacity: 0; }
+  100% { transform: scale(1.6); opacity: 0; }
 }
 
 /* Row actions fade in on hover, which never happens on a touch screen — show

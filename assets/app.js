@@ -54,6 +54,10 @@ let openTimeTaskId = null;
 // this to map a click back to a task.
 let scheduledForDay = [];
 
+// The window the bar was last drawn against, so the ticker can tell when the
+// scale has shifted under it and the bar needs redrawing rather than nudging.
+let timelineRangeUsed = null;
+
 /* ---------------------------------------------------------------- storage */
 
 function goalKey(id) {
@@ -1182,6 +1186,8 @@ function renderDayTimeline(scheduled, now) {
   const el = document.getElementById('dayTimeline');
   const range = timelineRange(scheduled, now);
 
+  timelineRangeUsed = range;
+
   if (!range) {
     el.innerHTML = '';
     el.classList.add('empty');
@@ -1208,7 +1214,8 @@ function renderDayTimeline(scheduled, now) {
   }).join('');
 
   if (now) {
-    html += `<div class="timeline-now" id="timelineNow" style="top: ${pct(minutesOf(now))}%"></div>`;
+    html += `<div class="timeline-now" id="timelineNow" title="Now — ${formatTimeRange(now, null)}"
+      style="top: ${pct(minutesOf(now))}%"></div>`;
   }
 
   el.innerHTML = html;
@@ -1285,11 +1292,21 @@ function refreshTimeStates() {
 
   const now = currentTimeKey();
   const range = timelineRange(scheduledForDay, now);
-  const marker = document.getElementById('timelineNow');
 
-  if (marker && range) {
-    const span = range.to - range.from;
-    marker.style.top = `${((minutesOf(now) - range.from) / span) * 100}%`;
+  // The window includes "now", so once the clock walks past the padding the
+  // scale itself grows. Moving only the marker would then measure it against a
+  // different scale than the blocks were drawn on, and everything would drift
+  // apart — so redraw the bar whenever the range changes.
+  if (range && timelineRangeUsed &&
+      (range.from !== timelineRangeUsed.from || range.to !== timelineRangeUsed.to)) {
+    renderDayTimeline(scheduledForDay, now);
+  } else {
+    const marker = document.getElementById('timelineNow');
+    if (marker && range) {
+      const span = range.to - range.from;
+      marker.style.top = `${((minutesOf(now) - range.from) / span) * 100}%`;
+      marker.title = `Now — ${formatTimeRange(now, null)}`;
+    }
   }
 
   scheduledForDay.forEach(task => {

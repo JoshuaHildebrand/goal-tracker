@@ -121,9 +121,16 @@ string. Only display goes through `formatTimeRange()`. The field is a native
 it mirror and flip that value, since the input's own meridiem segment can't be
 styled to show which one is selected.
 
-`refreshTimeStates()` runs on a 30-second interval and patches classes and the
-now marker's position in place rather than re-rendering, so the day stays
-current without tearing an open time editor out from under you.
+`refreshTimeStates()` runs on a 30-second interval and nudges the now ticker
+and the now/past-due classes in place rather than re-rendering, so the day
+stays current without tearing an open time editor out from under you. The
+timeline's window includes the current time, so when the clock walks past its
+padding the scale itself grows — the refresh compares against
+`timelineRangeUsed` and redraws the bar in that case, otherwise the ticker
+would be measured against a different scale than the blocks and drift.
+
+The ticker is white on purpose: every task block is themed red, and a red
+ticker is invisible against them.
 
 ## Known issues
 
