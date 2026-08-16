@@ -1173,6 +1173,66 @@ textarea {
   }
 }
 
+/* Planner Day Switcher */
+.planner-nav {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.planner-nav button {
+  background: var(--accent);
+  color: white;
+  border: 1px solid var(--accent-light);
+  width: 32px;
+  height: 32px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 10px var(--glow-red);
+}
+
+.planner-nav button:hover {
+  background: var(--accent-light);
+  transform: scale(1.05);
+  box-shadow: 0 0 20px var(--accent);
+}
+
+.planner-nav #plannerDate {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text);
+  letter-spacing: 0.03em;
+  min-width: 0;
+  flex: 1;
+  text-align: center;
+}
+
+.planner-nav .planner-today {
+  width: auto;
+  padding: 0 0.85rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: transparent;
+  color: var(--accent-light);
+}
+
+.planner-nav .planner-today:hover {
+  background: var(--accent);
+  color: white;
+}
+
 /* Form Helpers */
 .checkbox-label {
   display: flex;

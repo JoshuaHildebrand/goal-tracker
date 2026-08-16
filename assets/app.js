@@ -27,8 +27,17 @@ const GOAL_PREFIX = 'goal:';
 const DAILY_TASKS_KEY = 'dailyTasks';
 const TAB_ORDER = ['goals', 'todo', 'calendar', 'archive'];
 
+// How far back the To-Do history is kept. Every day's tasks live in one array
+// that nothing else trims, so without this it grows for the life of the app.
+const TASK_RETENTION_DAYS = 90;
+
 let currentCalendarDate = new Date();
 let dailyTasks = [];
+
+// Which day the To-Do tab is showing. Tasks have always carried a date; this
+// just lets you look at a day other than today, so tomorrow's list can be
+// built tonight. Resets to today on reload.
+let plannerDate = startOfToday();
 
 /* ---------------------------------------------------------------- storage */
 
@@ -113,6 +122,24 @@ function loadDailyTasks() {
     console.error('Error loading daily tasks:', error);
     dailyTasks = [];
   }
+  pruneOldTasks();
+}
+
+// Drop history past the retention window. Goal-derived tasks are redundant by
+// then — the objective carries its own completedDate, which is what the
+// calendar reads — so only stale quick-task records are actually lost. Future
+// dates are always kept, since planning ahead is the point of the day switcher.
+function pruneOldTasks() {
+  const cutoff = startOfToday();
+  cutoff.setDate(cutoff.getDate() - TASK_RETENTION_DAYS);
+  const cutoffKey = formatDateKey(cutoff);
+
+  // Date keys are 'YYYY-MM-DD', so a string compare is a chronological one.
+  const kept = dailyTasks.filter(task => task.date >= cutoffKey);
+  if (kept.length === dailyTasks.length) return;
+
+  dailyTasks = kept;
+  saveDailyTasks();
 }
 
 /* ----------------------------------------------------------------- domain */
@@ -164,11 +191,7 @@ function startOfToday() {
   return today;
 }
 
-function todayKey() {
-  return formatDateKey(new Date());
-}
-
-/* --------------------------------------------------------------- utitlity */
+/* --------------------------------------------------------------- utility */
 
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -201,8 +224,7 @@ function switchTab(tabName) {
   if (tabName === 'goals') {
     loadGoals();
   } else if (tabName === 'todo') {
-    renderObjectiveSelector();
-    renderDailyTasks();
+    renderPlanner();
   } else if (tabName === 'calendar') {
     renderCalendar();
     renderGoalsSidebar();
@@ -735,17 +757,47 @@ function saveObjectiveTarget(goalId, objectiveIndex) {
 
 /* ------------------------------------------------------------ daily tasks */
 
-function updateTodayDate() {
-  document.getElementById('todayDate').textContent = new Date().toLocaleDateString('en-US', {
+function plannerKey() {
+  return formatDateKey(plannerDate);
+}
+
+function changePlannerDay(delta) {
+  plannerDate.setDate(plannerDate.getDate() + delta);
+  renderPlanner();
+}
+
+function goToToday() {
+  plannerDate = startOfToday();
+  renderPlanner();
+}
+
+// Everything on the To-Do tab keys off the selected day, so one call refreshes
+// the header, the task list, and which objectives show as already added.
+function renderPlanner() {
+  renderPlannerDate();
+  renderDailyTasks();
+  renderObjectiveSelector();
+}
+
+function renderPlannerDate() {
+  const offset = Math.round((plannerDate - startOfToday()) / 86400000);
+  const relative = { '-1': 'Yesterday', 0: 'Today', 1: 'Tomorrow' }[offset];
+
+  const full = plannerDate.toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
     year: 'numeric'
   });
+
+  document.getElementById('plannerDate').textContent = relative ? `${relative} — ${full}` : full;
+
+  // Only offer the way back when there's somewhere to come back from.
+  document.getElementById('plannerToday').style.display = offset === 0 ? 'none' : 'inline-block';
 }
 
-function todaysTasks() {
-  const key = todayKey();
+function tasksForSelectedDay() {
+  const key = plannerKey();
   return dailyTasks.filter(task => task.date === key);
 }
 
@@ -764,7 +816,7 @@ function addQuickTask() {
     goalId: null,
     objectiveText: text,
     goalTitle: 'Quick Task',
-    date: todayKey(),
+    date: plannerKey(),
     completed: false,
     isQuickTask: true
   });
@@ -783,7 +835,7 @@ function renderObjectiveSelector() {
     return;
   }
 
-  const addedIds = new Set(todaysTasks().map(task => task.objectiveId));
+  const addedIds = new Set(tasksForSelectedDay().map(task => task.objectiveId));
 
   const html = goals.map(goal => {
     if (goal.isBoolean) {
@@ -835,7 +887,7 @@ function toggleDailyTask(goalId, objectiveIndex) {
 
   const isBoolean = objectiveIndex < 0;
   const objectiveId = isBoolean ? `boolean-${goalId}` : `${goalId}-${objectiveIndex}`;
-  const dateKey = todayKey();
+  const dateKey = plannerKey();
 
   const existingIndex = dailyTasks.findIndex(
     task => task.objectiveId === objectiveId && task.date === dateKey
@@ -867,10 +919,10 @@ function toggleDailyTask(goalId, objectiveIndex) {
 
 function renderDailyTasks() {
   const container = document.getElementById('dailyTaskList');
-  const tasks = todaysTasks();
+  const tasks = tasksForSelectedDay();
 
   if (tasks.length === 0) {
-    container.innerHTML = '<div class="empty-planner">No tasks for today.</div>';
+    container.innerHTML = '<div class="empty-planner">Nothing planned for this day yet.</div>';
     return;
   }
 
@@ -1227,5 +1279,4 @@ loadDailyTasks();
 loadGoals();
 renderCalendar();
 renderGoalsSidebar();
-renderObjectiveSelector();
-updateTodayDate();
+renderPlanner();
