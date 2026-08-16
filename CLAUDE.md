@@ -47,8 +47,14 @@ Seed state by writing `goal:<id>` keys into `localStorage` and reloading. Cover
 all four tabs — goals and tasks are edited from several of them and the write-
 through between Goals and Today's To-Do is where breakage tends to show up.
 
-## Before building features
+## Data migrations
 
-The objective-index issue in README.md's "Known issues" is worth fixing first
-if the work touches the to-do list — objectives are referenced by array index,
-so deleting one repoints existing tasks at the wrong objective.
+`schemaVersion` in `localStorage` guards one-time upgrades. To add one, bump
+`SCHEMA_VERSION`, write the migration to be safe to re-run, and only stamp the
+new version once its writes have succeeded — a failed write should mean the
+migration retries on the next load rather than being skipped.
+
+Anything that fills in a missing field on read must be **deterministic**.
+`normalizeGoal()` assigns `legacy-<index>` to objectives that predate stable
+ids precisely because a random value would differ on every read and break every
+lookup until it was persisted.

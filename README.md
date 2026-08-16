@@ -76,7 +76,8 @@ Two keys in `localStorage`:
   notes: '',
   createdAt: '2026-…',          // ISO
   objectives: [
-    { text: 'Write the docs', completed: true,
+    { id: 'm5k2p1q9x4',        // stable; never reused or renumbered
+      text: 'Write the docs', completed: true,
       completedDate: '2026-…',  // ISO, present only while completed
       targetDate: '2026-08-22'  // or null
     }
@@ -88,15 +89,20 @@ Two keys in `localStorage`:
 
 ```js
 {
-  id: '1786840187546-k3f9d2a1x',
-  objectiveId: '<goalId>-<index>' | 'boolean-<goalId>' | null,
-  goalId, objectiveIndex, goalTitle, objectiveText,
+  id: 'm5k2p1q9x4',
+  objectiveId: '<goalId>:<objectiveId>' | 'boolean-<goalId>' | null,
+  objectiveRef: '<objectiveId>' | null,   // which objective, by stable id
+  goalId, goalTitle, objectiveText,
   date: '2026-08-16',           // the day it belongs to
   completed: false,
   isBoolean: false,
   isQuickTask: true             // present only on free-form tasks
 }
 ```
+
+A third key, `schemaVersion`, records which one-time migrations have run.
+Objectives are found with `findObjective()` by id — never by array position,
+which is what used to break tasks when a neighbouring objective was deleted.
 
 Read and write goals through the helpers at the top of `app.js`
 (`readGoal`, `writeGoal`, `updateGoal`, `allGoals`) rather than touching
@@ -109,11 +115,6 @@ for anyone west of Greenwich.
 
 ## Known issues
 
-- **Objectives are addressed by array index.** A daily task points at its
-  objective via `<goalId>-<index>`, so deleting or reordering an objective
-  silently repoints any existing task at whatever slid into that slot. Fixing
-  it properly means giving objectives stable ids and migrating existing
-  records — worth doing before building anything else on top of the to-do list.
 - **Old to-do history is discarded after 90 days.** `dailyTasks` keeps every
   day in one array, so `pruneOldTasks()` trims it past `TASK_RETENTION_DAYS` on
   load to stop it growing forever. Goal-derived tasks are redundant by then
