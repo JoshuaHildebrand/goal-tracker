@@ -1197,16 +1197,230 @@ textarea {
   color: var(--accent-light);
 }
 
-/* Happening right now. */
+/* Happening right now — carried by emphasis, not a word. */
 .daily-task.now {
   border-color: var(--accent-light);
-  box-shadow: 0 0 12px var(--glow-red);
+  border-left: 3px solid var(--accent-light);
+  background: linear-gradient(90deg, rgba(196, 30, 30, 0.16), var(--surface) 60%);
+  box-shadow: 0 0 18px var(--glow-red);
 }
 
-.daily-task.now .daily-task-time::after {
-  content: ' · now';
+.daily-task.now .daily-task-objective {
   font-weight: 700;
+  color: #fff;
+}
+
+.daily-task.now .daily-task-time {
+  color: #fff;
+}
+
+@keyframes task-ping {
+  0%   { box-shadow: 0 0 0 0 var(--accent-light); }
+  100% { box-shadow: 0 0 0 14px rgba(196, 30, 30, 0); }
+}
+
+.daily-task.pinged {
+  animation: task-ping 0.7s ease-out;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Day timeline */
+.day-view {
+  display: flex;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.day-view .daily-task-list {
+  flex: 1;
+  min-width: 0;
+}
+
+.day-timeline {
+  position: relative;
+  flex: 0 0 46px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.day-timeline.empty {
+  display: none;
+}
+
+.timeline-tick {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--border);
+  pointer-events: none;
+}
+
+.timeline-tick span {
+  position: absolute;
+  left: 3px;
+  top: 1px;
+  font-size: 0.55rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.timeline-block {
+  position: absolute;
+  right: 5px;
+  width: 12px;
+  border-radius: 3px;
+  background: var(--accent);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.timeline-block.overdue {
+  background: var(--text-muted);
+}
+
+.timeline-block.now {
+  background: var(--accent-light);
+  opacity: 1;
+  box-shadow: 0 0 10px var(--accent-light);
+}
+
+.timeline-block.done {
+  background: var(--success);
+  opacity: 0.55;
+}
+
+.timeline-now {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent-light);
+  box-shadow: 0 0 8px var(--accent-light);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.timeline-now::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -3px;
+  border-left: 6px solid var(--accent-light);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+}
+
+/* The bar earns much less width than the list does on a phone. */
+@media (max-width: 640px) {
+  .day-view {
+    gap: 0.4rem;
+  }
+
+  .day-timeline {
+    flex: 0 0 28px;
+  }
+
+  .timeline-tick span {
+    font-size: 0.5rem;
+    left: 2px;
+  }
+
+  .timeline-block {
+    width: 7px;
+    right: 3px;
+  }
+
+  .day-view .daily-task-list {
+    padding: 0.5rem;
+  }
+
+  .daily-task {
+    padding: 0.6rem;
+    gap: 0.5rem;
+  }
+}
+
+/* Time picker */
+.time-field {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.time-field-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  min-width: 2.5rem;
+}
+
+.time-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.time-picker select {
+  width: auto;
+  padding: 0.35rem 0.3rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  background: var(--bg);
   color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.time-picker select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 8px var(--glow-red);
+}
+
+.tp-colon {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.tp-meridiem {
+  padding: 0.35rem 0.5rem;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tp-meridiem:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.tp-meridiem.active {
+  background: var(--accent);
+  border-color: var(--accent-light);
+  color: #fff;
+  box-shadow: 0 0 10px var(--glow-red);
 }
 
 /* Its block runs into the next one's. Flagged, not prevented. */
@@ -1237,7 +1451,8 @@ textarea {
 
 .task-time-section {
   display: none;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 0.5rem;
   flex-wrap: wrap;
   margin: -0.35rem 0 0.75rem 0.5rem;
