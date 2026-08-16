@@ -66,10 +66,17 @@
     <!-- TODAY'S TO-DO TAB -->
     <div id="todo-tab" class="tab-content">
       <div class="daily-planner">
-        <h2>Today's To-Do List</h2>
+        <h2>To-Do List</h2>
+
+        <div class="planner-nav">
+          <button onclick="changePlannerDay(-1)" aria-label="Previous day">&#8249;</button>
+          <span id="plannerDate"></span>
+          <button onclick="changePlannerDay(1)" aria-label="Next day">&#8250;</button>
+          <button id="plannerToday" class="planner-today" onclick="goToToday()">Today</button>
+        </div>
 
         <div class="planner-section">
-          <h3>Today's Tasks (<span id="todayDate"></span>)</h3>
+          <h3>Tasks</h3>
           <div class="daily-task-list" id="dailyTaskList"></div>
         </div>
 
