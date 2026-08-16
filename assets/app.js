@@ -4,27 +4,34 @@
  * A dependency-free goal tracker backed by localStorage.
  *
  * Storage layout:
- *   goal:<id>   -> a single Goal object (see the shape below)
- *   dailyTasks  -> an array of DailyTask objects, all days in one list
+ *   goal:<id>      -> a single Goal object (see the shape below)
+ *   dailyTasks     -> an array of DailyTask objects, all days in one list
+ *   schemaVersion  -> guards the one-time migrations in this file
  *
  * Goal {
  *   id, title, deadline: 'YYYY-MM-DD'|null, isBoolean, completed,
  *   completedDate?: ISO, notes, archived?: true, createdAt: ISO,
- *   objectives: [{ text, completed, completedDate?: ISO, targetDate?: 'YYYY-MM-DD' }]
+ *   objectives: [{ id, text, completed, completedDate?: ISO,
+ *                  targetDate?: 'YYYY-MM-DD' }]
  * }
  *
  * DailyTask {
- *   id, objectiveId: '<goalId>-<index>'|'boolean-<goalId>'|null,
- *   goalId, objectiveIndex, goalTitle, objectiveText,
+ *   id, objectiveId: '<goalId>:<objectiveId>'|'boolean-<goalId>'|null,
+ *   objectiveRef: <objectiveId>|null, goalId, goalTitle, objectiveText,
  *   date: 'YYYY-MM-DD', completed, isBoolean?, isQuickTask?
  * }
  *
- * Objectives are addressed by their array index, so a task's objectiveId is
- * only valid while that index is stable. See "Known issues" in README.md.
+ * Objectives carry their own id, so a task keeps pointing at the right one
+ * even after its neighbours are deleted or reordered. Look them up with
+ * findObjective(); never by array position.
  */
 
 const GOAL_PREFIX = 'goal:';
 const DAILY_TASKS_KEY = 'dailyTasks';
+const SCHEMA_KEY = 'schemaVersion';
+
+// 2 = objectives carry stable ids instead of being addressed by array position.
+const SCHEMA_VERSION = 2;
 const TAB_ORDER = ['goals', 'todo', 'calendar', 'archive'];
 
 // How far back the To-Do history is kept. Every day's tasks live in one array
@@ -45,10 +52,32 @@ function goalKey(id) {
   return `${GOAL_PREFIX}${id}`;
 }
 
+function newId() {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
 // Older records predate some fields; normalise so callers can assume the shape.
+// Objectives from before stable ids get a placeholder so nothing downstream has
+// to cope with a missing id. It is derived from the position rather than random
+// so that repeated reads agree with each other — a random id here would differ
+// on every read and break every lookup until migrateObjectiveIds() persisted
+// them. newId() never produces this shape, so the two can't collide.
 function normalizeGoal(goal) {
   if (!Array.isArray(goal.objectives)) goal.objectives = [];
+  goal.objectives.forEach((obj, index) => {
+    if (!obj.id) obj.id = `legacy-${index}`;
+  });
   return goal;
+}
+
+function findObjective(goal, objectiveRef) {
+  return goal.objectives.find(obj => obj.id === objectiveRef) || null;
+}
+
+// How a to-do task points back at what it came from. A null ref means the
+// whole goal, which is how yes/no goals are tracked.
+function taskRef(goalId, objectiveRef) {
+  return objectiveRef ? `${goalId}:${objectiveRef}` : `boolean-${goalId}`;
 }
 
 function readGoal(id) {
@@ -123,6 +152,49 @@ function loadDailyTasks() {
     dailyTasks = [];
   }
   pruneOldTasks();
+}
+
+// One-time upgrade from positional objective references to stable ids.
+//
+// Tasks used to point at an objective by array position ('<goalId>-<index>'),
+// so deleting an objective silently repointed existing tasks at whatever slid
+// into that slot. Positions are still accurate at the moment we run, so we can
+// map each one to the id now assigned to the objective sitting there.
+//
+// Runs after loadDailyTasks() so it can rewrite tasks in place, and is a no-op
+// once every goal and task is already on the new scheme.
+function migrateObjectiveIds() {
+  if (Number(localStorage.getItem(SCHEMA_KEY)) >= SCHEMA_VERSION) return;
+
+  // normalizeGoal() fills in ids on read; writing the goal back persists them.
+  // Positions are still accurate right now, so record what each one maps to.
+  const remap = new Map();
+
+  allGoals().forEach(goal => {
+    goal.objectives.forEach((obj, index) => remap.set(`${goal.id}-${index}`, obj.id));
+    writeGoal(goal);
+  });
+
+  dailyTasks = dailyTasks.filter(task => {
+    delete task.objectiveIndex; // positional leftover, on every task shape
+
+    // Quick tasks and yes/no goals never referenced a position.
+    if (!task.objectiveId || task.isQuickTask) return true;
+    if (task.objectiveId.startsWith('boolean-')) return true;
+    if (task.objectiveId.includes(':')) return true;
+
+    const objectiveRef = remap.get(task.objectiveId);
+    if (!objectiveRef) return false; // goal deleted, or the slot no longer exists
+
+    task.objectiveRef = objectiveRef;
+    task.objectiveId = taskRef(task.goalId, objectiveRef);
+    delete task.objectiveIndex;
+    return true;
+  });
+
+  // Only claim the upgrade once the rewritten tasks are safely stored, so a
+  // failed write here means we retry next load rather than stranding them.
+  if (saveDailyTasks()) localStorage.setItem(SCHEMA_KEY, String(SCHEMA_VERSION));
 }
 
 // Drop history past the retention window. Goal-derived tasks are redundant by
@@ -288,7 +360,7 @@ document.getElementById('goalForm').addEventListener('submit', event => {
     completed: false,
     objectives: isBoolean
       ? []
-      : objectiveInputValues().map(text => ({ text, completed: false })),
+      : objectiveInputValues().map(text => ({ id: newId(), text, completed: false })),
     notes: '',
     createdAt: new Date().toISOString()
   };
@@ -345,20 +417,22 @@ function renderDeadlineBadge(goal) {
     onclick="event.stopPropagation(); editDeadlineInline('${goal.id}', '${goal.deadline}')">${formatDeadline(parseLocalDate(goal.deadline))}</div>`;
 }
 
-function renderObjective(goal, obj, index) {
+function renderObjective(goal, obj) {
+  const ref = `${goal.id}-${obj.id}`;
+
   return `
     <div>
       <div class="objective-checkbox ${obj.completed ? 'completed' : ''}">
-        <input type="checkbox" id="obj-${goal.id}-${index}" ${obj.completed ? 'checked' : ''}
-          onchange="toggleObjective('${goal.id}', ${index})">
-        <label for="obj-${goal.id}-${index}"
-          ondblclick="event.preventDefault(); editObjectiveText('${goal.id}', ${index})">${escapeHtml(obj.text)}</label>
-        <button class="target-date-toggle" onclick="toggleTargetDate('${goal.id}', ${index})">&#128197;</button>
-        <button class="btn-remove" onclick="removeObjective('${goal.id}', ${index})">&times;</button>
+        <input type="checkbox" id="obj-${ref}" ${obj.completed ? 'checked' : ''}
+          onchange="toggleObjective('${goal.id}', '${obj.id}')">
+        <label for="obj-${ref}"
+          ondblclick="event.preventDefault(); editObjectiveText('${goal.id}', '${obj.id}')">${escapeHtml(obj.text)}</label>
+        <button class="target-date-toggle" onclick="toggleTargetDate('${goal.id}', '${obj.id}')">&#128197;</button>
+        <button class="btn-remove" onclick="removeObjective('${goal.id}', '${obj.id}')">&times;</button>
       </div>
-      <div class="target-date-section" id="target-section-${goal.id}-${index}">
-        <input type="date" id="target-${goal.id}-${index}" value="${obj.targetDate || ''}"
-          onchange="saveObjectiveTarget('${goal.id}', ${index})">
+      <div class="target-date-section" id="target-section-${ref}">
+        <input type="date" id="target-${ref}" value="${obj.targetDate || ''}"
+          onchange="saveObjectiveTarget('${goal.id}', '${obj.id}')">
         <label>Target date</label>
       </div>
     </div>
@@ -383,7 +457,7 @@ function renderGoalBody(goal) {
     <div class="objectives-section">
       <h3>Objectives (${completed}/${total})</h3>
       ${goal.objectives.length > 0
-        ? goal.objectives.map((obj, index) => renderObjective(goal, obj, index)).join('')
+        ? goal.objectives.map(obj => renderObjective(goal, obj)).join('')
         : '<div class="no-objectives">No objectives yet</div>'}
 
       <div class="add-objective-row">
@@ -635,7 +709,7 @@ function addObjective(goalId) {
     return;
   }
 
-  if (!updateGoal(goalId, goal => { goal.objectives.push({ text, completed: false }); })) return;
+  if (!updateGoal(goalId, goal => { goal.objectives.push({ id: newId(), text, completed: false }); })) return;
 
   input.value = '';
 
@@ -646,11 +720,11 @@ function addObjective(goalId) {
   }
 }
 
-function toggleObjective(goalId, objectiveIndex) {
+function toggleObjective(goalId, objectiveRef) {
   let nowCompleted = false;
 
   const updated = updateGoal(goalId, goal => {
-    const objective = goal.objectives[objectiveIndex];
+    const objective = findObjective(goal, objectiveRef);
     if (!objective) return false;
 
     nowCompleted = !objective.completed;
@@ -665,15 +739,15 @@ function toggleObjective(goalId, objectiveIndex) {
 
   if (!updated) return;
 
-  const row = document.querySelector(`.objective-checkbox:has(#obj-${goalId}-${objectiveIndex})`);
+  const row = document.querySelector(`.objective-checkbox:has(#obj-${goalId}-${objectiveRef})`);
   if (row) row.classList.toggle('completed', nowCompleted);
 
   updateGoalCardProgress(goalId);
-  syncObjectiveWithDailyTasks(goalId, objectiveIndex, nowCompleted);
+  syncObjectiveWithDailyTasks(goalId, objectiveRef, nowCompleted);
 }
 
-function editObjectiveText(goalId, objectiveIndex) {
-  const label = document.querySelector(`label[for="obj-${goalId}-${objectiveIndex}"]`);
+function editObjectiveText(goalId, objectiveRef) {
+  const label = document.querySelector(`label[for="obj-${goalId}-${objectiveRef}"]`);
   const currentText = label.textContent;
 
   const input = document.createElement('input');
@@ -693,22 +767,23 @@ function editObjectiveText(goalId, objectiveIndex) {
     }
 
     const updated = updateGoal(goalId, goal => {
-      if (!goal.objectives[objectiveIndex]) return false;
-      goal.objectives[objectiveIndex].text = newText;
+      const objective = findObjective(goal, objectiveRef);
+      if (!objective) return false;
+      objective.text = newText;
     });
     if (!updated) return;
 
     const newLabel = document.createElement('label');
-    newLabel.htmlFor = `obj-${goalId}-${objectiveIndex}`;
+    newLabel.htmlFor = `obj-${goalId}-${objectiveRef}`;
     newLabel.textContent = newText;
     newLabel.ondblclick = event => {
       event.preventDefault();
-      editObjectiveText(goalId, objectiveIndex);
+      editObjectiveText(goalId, objectiveRef);
     };
     input.replaceWith(newLabel);
 
     // Keep any to-do entries pointing at this objective in step.
-    const objectiveId = `${goalId}-${objectiveIndex}`;
+    const objectiveId = taskRef(goalId, objectiveRef);
     dailyTasks.forEach(task => {
       if (task.objectiveId === objectiveId) task.objectiveText = newText;
     });
@@ -727,28 +802,44 @@ function editObjectiveText(goalId, objectiveIndex) {
   };
 }
 
-function removeObjective(goalId, objectiveIndex) {
+function removeObjective(goalId, objectiveRef) {
   if (!confirm('Remove this objective?')) return;
-  if (!updateGoal(goalId, goal => { goal.objectives.splice(objectiveIndex, 1); })) return;
+
+  const updated = updateGoal(goalId, goal => {
+    const index = goal.objectives.findIndex(obj => obj.id === objectiveRef);
+    if (index < 0) return false;
+    goal.objectives.splice(index, 1);
+  });
+  if (!updated) return;
+
+  // Tasks pointing at the removed objective would otherwise linger with no
+  // objective behind them. Other objectives keep their ids, so nothing else
+  // is disturbed by the shift.
+  const objectiveId = taskRef(goalId, objectiveRef);
+  const before = dailyTasks.length;
+  dailyTasks = dailyTasks.filter(task => task.objectiveId !== objectiveId);
+  if (dailyTasks.length !== before) saveDailyTasks();
 
   loadGoals();
+  if (isTabActive('todo')) renderPlanner();
 }
 
-function toggleTargetDate(goalId, objectiveIndex) {
-  const section = document.getElementById(`target-section-${goalId}-${objectiveIndex}`);
+function toggleTargetDate(goalId, objectiveRef) {
+  const section = document.getElementById(`target-section-${goalId}-${objectiveRef}`);
   section.classList.toggle('show');
 
   if (section.classList.contains('show')) {
-    document.getElementById(`target-${goalId}-${objectiveIndex}`).focus();
+    document.getElementById(`target-${goalId}-${objectiveRef}`).focus();
   }
 }
 
-function saveObjectiveTarget(goalId, objectiveIndex) {
-  const targetDate = document.getElementById(`target-${goalId}-${objectiveIndex}`).value;
+function saveObjectiveTarget(goalId, objectiveRef) {
+  const targetDate = document.getElementById(`target-${goalId}-${objectiveRef}`).value;
 
   const updated = updateGoal(goalId, goal => {
-    if (!goal.objectives[objectiveIndex]) return false;
-    goal.objectives[objectiveIndex].targetDate = targetDate || null;
+    const objective = findObjective(goal, objectiveRef);
+    if (!objective) return false;
+    objective.targetDate = targetDate || null;
   });
   if (!updated) return;
 
@@ -845,27 +936,24 @@ function renderObjectiveSelector() {
         <div class="goal-objectives-group">
           <div class="goal-objectives-title">${escapeHtml(goal.title)} (Yes/No Goal)</div>
           <div class="selectable-objective ${inList ? 'in-list' : ''}"
-            onclick="toggleDailyTask('${goal.id}', -1)">
+            onclick="toggleDailyTask('${goal.id}', '')">
             <span>${inList ? '✓ ' : ''}Complete this goal</span>
           </div>
         </div>
       `;
     }
 
-    const pending = goal.objectives
-      .map((obj, index) => ({ ...obj, index }))
-      .filter(obj => !obj.completed);
-
+    const pending = goal.objectives.filter(obj => !obj.completed);
     if (pending.length === 0) return '';
 
     return `
       <div class="goal-objectives-group">
         <div class="goal-objectives-title">${escapeHtml(goal.title)}</div>
         ${pending.map(obj => {
-          const inList = addedIds.has(`${goal.id}-${obj.index}`);
+          const inList = addedIds.has(taskRef(goal.id, obj.id));
           return `
             <div class="selectable-objective ${inList ? 'in-list' : ''}"
-              onclick="toggleDailyTask('${goal.id}', ${obj.index})">
+              onclick="toggleDailyTask('${goal.id}', '${obj.id}')">
               <span>${inList ? '✓ ' : ''}${escapeHtml(obj.text)}</span>
             </div>
           `;
@@ -877,15 +965,15 @@ function renderObjectiveSelector() {
   container.innerHTML = html || '<div class="empty-planner">All objectives completed!</div>';
 }
 
-// `objectiveIndex` of -1 addresses a boolean goal as a whole. Titles are read
+// An empty objectiveRef addresses a yes/no goal as a whole. Titles are read
 // from storage here rather than passed through the markup, so a goal title
 // containing quotes or backslashes can't break out of the onclick attribute.
-function toggleDailyTask(goalId, objectiveIndex) {
+function toggleDailyTask(goalId, objectiveRef) {
   const goal = readGoal(goalId);
   if (!goal) return;
 
-  const isBoolean = objectiveIndex < 0;
-  const objectiveId = isBoolean ? `boolean-${goalId}` : `${goalId}-${objectiveIndex}`;
+  const isBoolean = !objectiveRef;
+  const objectiveId = taskRef(goalId, objectiveRef);
   const dateKey = plannerKey();
 
   const existingIndex = dailyTasks.findIndex(
@@ -895,14 +983,14 @@ function toggleDailyTask(goalId, objectiveIndex) {
   if (existingIndex >= 0) {
     dailyTasks.splice(existingIndex, 1);
   } else {
-    const objective = isBoolean ? null : goal.objectives[objectiveIndex];
+    const objective = isBoolean ? null : findObjective(goal, objectiveRef);
     if (!isBoolean && !objective) return;
 
     dailyTasks.push({
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+      id: newId(),
       objectiveId,
+      objectiveRef: objectiveRef || null,
       goalId,
-      objectiveIndex,
       goalTitle: goal.title,
       objectiveText: isBoolean ? goal.title : objective.text,
       date: dateKey,
@@ -969,7 +1057,7 @@ function toggleDailyTaskCompletion(taskId) {
         return;
       }
 
-      const objective = goal.objectives[task.objectiveIndex];
+      const objective = findObjective(goal, task.objectiveRef);
       if (!objective) return false;
 
       objective.completed = task.completed;
@@ -983,7 +1071,7 @@ function toggleDailyTaskCompletion(taskId) {
     if (isTabActive('goals')) {
       if (!task.isBoolean) {
         const row = document.querySelector(
-          `.objective-checkbox:has(#obj-${task.goalId}-${task.objectiveIndex})`
+          `.objective-checkbox:has(#obj-${task.goalId}-${task.objectiveRef})`
         );
         if (row) row.classList.toggle('completed', task.completed);
       }
@@ -996,8 +1084,8 @@ function toggleDailyTaskCompletion(taskId) {
   renderCalendar();
 }
 
-function syncObjectiveWithDailyTasks(goalId, objectiveIndex, isCompleted) {
-  const objectiveId = `${goalId}-${objectiveIndex}`;
+function syncObjectiveWithDailyTasks(goalId, objectiveRef, isCompleted) {
+  const objectiveId = taskRef(goalId, objectiveRef);
 
   dailyTasks.forEach(task => {
     if (task.objectiveId === objectiveId) task.completed = isCompleted;
@@ -1275,6 +1363,7 @@ function scrollToGoal(goalId) {
 
 addObjectiveInput();
 loadDailyTasks();
+migrateObjectiveIds();
 loadGoals();
 renderCalendar();
 renderGoalsSidebar();
