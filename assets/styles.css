@@ -1559,6 +1559,41 @@ textarea {
   border-top: 1px solid var(--border);
 }
 
+/* Backup controls — deliberately quiet, since they're used rarely. */
+.data-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 2.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.data-btn {
+  background: none;
+  border: none;
+  padding: 0.3rem 0.4rem;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.2s ease, text-shadow 0.2s ease;
+}
+
+.data-btn:hover {
+  color: var(--accent-light);
+  text-shadow: 0 0 10px var(--glow);
+}
+
+.data-sep {
+  color: var(--border);
+  font-size: 0.72rem;
+}
+
 /* Planner Day Switcher */
 .planner-nav {
   display: flex;

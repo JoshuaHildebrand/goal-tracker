@@ -29,9 +29,13 @@ python3 -m http.server 8000    # then open http://localhost:8000
 Everything is stored in `localStorage`, which browsers scope per origin. Goals
 saved on the Pages URL won't appear when you open the same app from disk, or in
 a different browser, and vice versa — the data isn't lost, it's filed under the
-other origin. Pick one way to open it and stay with it. There is no export yet
-(see Known issues), so to move data between origins you currently have to copy
-`localStorage` across by hand in the browser console.
+other origin. Pick one way to open it and stay with it.
+
+**Export backup** at the foot of the page writes everything to a JSON file, and
+**Import backup** reads one back. That's the supported way to take a backup or
+move between browsers and devices. Importing *replaces* what's in the browser
+rather than merging, and asks first; a backup that predates a schema change is
+migrated on the way in.
 
 ## The four tabs
 
@@ -66,7 +70,7 @@ goal rendering → goal mutations → objectives → daily tasks → calendar �
 
 ## Data model
 
-Two keys in `localStorage`:
+Three keys in `localStorage`:
 
 **`goal:<id>`** — one goal per key:
 
@@ -108,7 +112,10 @@ Two keys in `localStorage`:
 }
 ```
 
-A third key, `schemaVersion`, records which one-time migrations have run.
+A third key, `schemaVersion`, records which one-time migrations have run. Those
+three are exactly what export writes out and import replaces; nothing else in
+`localStorage` is touched.
+
 Objectives are found with `findObjective()` by id — never by array position,
 which is what used to break tasks when a neighbouring objective was deleted.
 
@@ -135,8 +142,8 @@ padding the scale itself grows — the refresh compares against
 `timelineRangeUsed` and redraws the bar in that case, otherwise the ticker
 would be measured against a different scale than the blocks and drift.
 
-The ticker is white on purpose: every task block is themed red, and a red
-ticker is invisible against them.
+The ticker is white on purpose: task blocks are drawn in the accent colour
+whatever the theme is, so an accent-coloured ticker disappears into them.
 
 ## Known issues
 
@@ -145,9 +152,6 @@ ticker is invisible against them.
   load to stop it growing forever. Goal-derived tasks are redundant by then
   (the objective's own `completedDate` is what the calendar reads), but old
   quick tasks are the only record of themselves and are genuinely lost.
-- **No export/import.** Clearing site data loses everything, and there's no
-  supported way to move goals between origins (disk vs. Pages vs. another
-  browser). An export/import button would fix both at once.
 
 ## Ideas
 

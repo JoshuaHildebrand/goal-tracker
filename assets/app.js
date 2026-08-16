@@ -226,6 +226,114 @@ function pruneOldTasks() {
   saveDailyTasks();
 }
 
+/* ------------------------------------------------------- export / import */
+
+// Bumped only if the file layout itself changes. Distinct from SCHEMA_VERSION,
+// which describes the records inside.
+const EXPORT_FORMAT = 1;
+
+function appDataKeys() {
+  return Object.keys(localStorage).filter(
+    key => key.startsWith(GOAL_PREFIX) || key === DAILY_TASKS_KEY || key === SCHEMA_KEY);
+}
+
+function exportData() {
+  const payload = {
+    app: 'goal-tracker',
+    format: EXPORT_FORMAT,
+    exportedAt: new Date().toISOString(),
+    // Carried so an older backup still migrates correctly when it lands.
+    schemaVersion: Number(localStorage.getItem(SCHEMA_KEY)) || null,
+    goals: allGoals(),
+    dailyTasks
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `goal-tracker-${formatDateKey(new Date())}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+// Checked before anything is written, so a bad file can't half-apply.
+function parseImport(text) {
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (error) {
+    return { error: 'That file isn’t valid JSON.' };
+  }
+
+  if (!data || typeof data !== 'object') return { error: 'That file doesn’t look like a backup.' };
+  if (data.app !== 'goal-tracker') return { error: 'That backup came from a different app.' };
+  if (!Array.isArray(data.goals) || !Array.isArray(data.dailyTasks)) {
+    return { error: 'That backup is missing its goals or its tasks.' };
+  }
+  if (data.goals.some(goal => !goal || typeof goal.id !== 'string' || typeof goal.title !== 'string')) {
+    return { error: 'That backup contains a goal record that can’t be read.' };
+  }
+  if (data.dailyTasks.some(task => !task || typeof task.id !== 'string')) {
+    return { error: 'That backup contains a task record that can’t be read.' };
+  }
+
+  return { data };
+}
+
+// localStorage has no transaction, so take a copy first: a quota error midway
+// through would otherwise leave the user with neither their old data nor the
+// imported set.
+function applyImport(data) {
+  const snapshot = {};
+  appDataKeys().forEach(key => { snapshot[key] = localStorage.getItem(key); });
+
+  try {
+    appDataKeys().forEach(key => localStorage.removeItem(key));
+
+    data.goals.forEach(goal => localStorage.setItem(goalKey(goal.id), JSON.stringify(goal)));
+    localStorage.setItem(DAILY_TASKS_KEY, JSON.stringify(data.dailyTasks));
+
+    // Left unset when the backup predates the stamp, so the migration reruns.
+    if (data.schemaVersion) localStorage.setItem(SCHEMA_KEY, String(data.schemaVersion));
+    return true;
+  } catch (error) {
+    console.error('Import failed, rolling back:', error);
+    appDataKeys().forEach(key => localStorage.removeItem(key));
+    Object.entries(snapshot).forEach(([key, value]) => localStorage.setItem(key, value));
+    alert('Import failed and nothing was changed. The backup may be too large for this browser.');
+    return false;
+  }
+}
+
+function importData(input) {
+  const file = input.files && input.files[0];
+  input.value = ''; // so picking the same file twice still fires a change
+  if (!file) return;
+
+  file.text().then(text => {
+    const { data, error } = parseImport(text);
+    if (error) {
+      alert(error);
+      return;
+    }
+
+    const goals = data.goals.length;
+    const tasks = data.dailyTasks.length;
+    const when = data.exportedAt ? new Date(data.exportedAt).toLocaleString() : 'an unknown date';
+
+    const confirmed = confirm(
+      `Import ${goals} goal${goals === 1 ? '' : 's'} and ${tasks} task${tasks === 1 ? '' : 's'} ` +
+      `saved on ${when}?\n\nThis replaces everything currently stored in this browser.`);
+
+    if (confirmed && applyImport(data)) location.reload();
+  }).catch(() => alert('That file couldn’t be read.'));
+}
+
 /* ----------------------------------------------------------------- domain */
 
 // A boolean goal counts as a single unit of work; others count objectives.
