@@ -53,6 +53,12 @@ assets/styles.css   all styling; theme lives in the :root custom properties
 assets/app.js       all behaviour, in labelled sections
 ```
 
+The look is a Nightwing treatment — electric blue on a near-black navy, swept
+wings in the header, Rajdhani for display and Barlow for body text. Retheming
+means editing the `:root` block and little else; red and amber are held back
+for deadlines, overdue work and destructive buttons so urgency still reads
+against the blue.
+
 `app.js` is a single classic script, not an ES module, so the inline `onclick`
 handlers in the markup can reach its functions and `file://` keeps working.
 It's organised as: storage → domain → dates → utilities → tabs → goal form →
