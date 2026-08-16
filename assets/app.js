@@ -27,6 +27,10 @@ const GOAL_PREFIX = 'goal:';
 const DAILY_TASKS_KEY = 'dailyTasks';
 const TAB_ORDER = ['goals', 'todo', 'calendar', 'archive'];
 
+// How far back the To-Do history is kept. Every day's tasks live in one array
+// that nothing else trims, so without this it grows for the life of the app.
+const TASK_RETENTION_DAYS = 90;
+
 let currentCalendarDate = new Date();
 let dailyTasks = [];
 
@@ -118,6 +122,24 @@ function loadDailyTasks() {
     console.error('Error loading daily tasks:', error);
     dailyTasks = [];
   }
+  pruneOldTasks();
+}
+
+// Drop history past the retention window. Goal-derived tasks are redundant by
+// then — the objective carries its own completedDate, which is what the
+// calendar reads — so only stale quick-task records are actually lost. Future
+// dates are always kept, since planning ahead is the point of the day switcher.
+function pruneOldTasks() {
+  const cutoff = startOfToday();
+  cutoff.setDate(cutoff.getDate() - TASK_RETENTION_DAYS);
+  const cutoffKey = formatDateKey(cutoff);
+
+  // Date keys are 'YYYY-MM-DD', so a string compare is a chronological one.
+  const kept = dailyTasks.filter(task => task.date >= cutoffKey);
+  if (kept.length === dailyTasks.length) return;
+
+  dailyTasks = kept;
+  saveDailyTasks();
 }
 
 /* ----------------------------------------------------------------- domain */

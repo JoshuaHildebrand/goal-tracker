@@ -114,8 +114,11 @@ for anyone west of Greenwich.
   silently repoints any existing task at whatever slid into that slot. Fixing
   it properly means giving objectives stable ids and migrating existing
   records — worth doing before building anything else on top of the to-do list.
-- **`dailyTasks` grows forever.** Every day's tasks stay in one array; only
-  today's are ever read. It needs pruning, or a history view that uses them.
+- **Old to-do history is discarded after 90 days.** `dailyTasks` keeps every
+  day in one array, so `pruneOldTasks()` trims it past `TASK_RETENTION_DAYS` on
+  load to stop it growing forever. Goal-derived tasks are redundant by then
+  (the objective's own `completedDate` is what the calendar reads), but old
+  quick tasks are the only record of themselves and are genuinely lost.
 - **No export/import.** Clearing site data loses everything, and there's no
   supported way to move goals between origins (disk vs. Pages vs. another
   browser). An export/import button would fix both at once.
