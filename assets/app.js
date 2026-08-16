@@ -1124,13 +1124,17 @@ function renderDailyTask(task, { clashing, now }) {
         <input type="checkbox" ${task.completed ? 'checked' : ''}
           onchange="toggleDailyTaskCompletion('${task.id}')">
         <div class="daily-task-text">
+          <div class="daily-task-actions">
+            <button class="task-time-toggle ${task.start ? 'set' : ''}"
+              onclick="toggleTaskTime('${task.id}')" aria-label="Set time">&#128336;</button>
+            <button class="btn-remove" onclick="removeDailyTask('${task.id}')"
+              aria-label="Remove task">&times;</button>
+          </div>
           ${task.isQuickTask ? '' : `<div class="daily-task-goal">from ${escapeHtml(task.goalTitle)}</div>`}
-          <div class="daily-task-objective">${escapeHtml(task.objectiveText)}</div>
+          <div class="daily-task-objective" ondblclick="editTaskText('${task.id}')"
+            title="Double-tap to rename">${escapeHtml(task.objectiveText)}</div>
           ${timeLabel}
         </div>
-        <button class="task-time-toggle ${task.start ? 'set' : ''}"
-          onclick="toggleTaskTime('${task.id}')" aria-label="Set time">&#128336;</button>
-        <button class="btn-remove" onclick="removeDailyTask('${task.id}')">&times;</button>
       </div>
       <div class="task-time-section ${openTimeTaskId === task.id ? 'show' : ''}"
         id="time-section-${task.id}">
@@ -1302,36 +1306,18 @@ function meridiemFor(taskId, which, value) {
   return pendingMeridiem[`${taskId}-${which}`] || (new Date().getHours() < 12 ? 'AM' : 'PM');
 }
 
-// Native <input type="time"> can't be styled, and the user wants the meridiem
-// to read as a pair of selectable buttons — so the picker is built by hand.
+// The field itself is a native <input type="time"> so phones get their own
+// wheel. The meridiem is mirrored into a pair of buttons beside it, because
+// the input's own AM/PM segment can't be styled to show which is selected —
+// the buttons are both a readout and a way to flip it.
 function renderTimePicker(taskId, which, value) {
-  const selected = value ? formatTime(value) : null;
-  const hour = selected ? Number(selected.text.split(':')[0]) : '';
-  const minute = value ? minutesOf(value) % 60 : 0;
   const meridiem = meridiemFor(taskId, which, value);
-
-  const hours = Array.from({ length: 12 }, (_, i) => i + 1)
-    .map(h => `<option value="${h}" ${h === hour ? 'selected' : ''}>${h}</option>`).join('');
-
-  // Keep an off-step minute (from an older entry) selectable rather than
-  // silently rounding it away.
-  const steps = Array.from({ length: 60 / MINUTE_STEP }, (_, i) => i * MINUTE_STEP);
-  if (!steps.includes(minute)) steps.push(minute);
-
-  const minutes = steps.sort((a, b) => a - b)
-    .map(m => `<option value="${m}" ${m === minute ? 'selected' : ''}>${String(m).padStart(2, '0')}</option>`)
-    .join('');
 
   return `
     <div class="time-picker" id="tp-${which}-${taskId}">
-      <select class="tp-hour" aria-label="Hour" onchange="saveTaskTime('${taskId}', '${which}')">
-        <option value="" ${hour === '' ? 'selected' : ''}>--</option>
-        ${hours}
-      </select>
-      <span class="tp-colon">:</span>
-      <select class="tp-minute" aria-label="Minute" onchange="saveTaskTime('${taskId}', '${which}')">
-        ${minutes}
-      </select>
+      <input type="time" class="tp-input" id="tp-input-${which}-${taskId}"
+        aria-label="${which === 'start' ? 'Start' : 'End'} time" value="${value || ''}"
+        onchange="saveTaskTime('${taskId}', '${which}')">
       <button type="button" class="tp-meridiem ${meridiem === 'AM' ? 'active' : ''}"
         aria-pressed="${meridiem === 'AM'}"
         onclick="setMeridiem('${taskId}', '${which}', 'AM')">AM</button>
@@ -1343,24 +1329,28 @@ function renderTimePicker(taskId, which, value) {
 }
 
 function readTimePicker(taskId, which) {
-  const picker = document.getElementById(`tp-${which}-${taskId}`);
-  if (!picker) return null;
-
-  const hour = picker.querySelector('.tp-hour').value;
-  if (!hour) return null;
-
-  const minute = Number(picker.querySelector('.tp-minute').value);
-  const isPm = picker.querySelector('.tp-meridiem.active').textContent === 'PM';
-  const hours24 = (Number(hour) % 12) + (isPm ? 12 : 0);
-
-  return `${String(hours24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  const input = document.getElementById(`tp-input-${which}-${taskId}`);
+  return input && input.value ? input.value : null;
 }
 
 function setMeridiem(taskId, which, meridiem) {
-  const picker = document.getElementById(`tp-${which}-${taskId}`);
-  if (!picker) return;
+  const input = document.getElementById(`tp-input-${which}-${taskId}`);
+  if (!input) return;
 
-  picker.querySelectorAll('.tp-meridiem').forEach(button => {
+  // With a time already entered, the buttons shift it by twelve hours. With an
+  // empty field there's nothing to shift, so remember the choice for whenever
+  // an hour does arrive.
+  if (input.value) {
+    const total = minutesOf(input.value);
+    const isPm = total >= 720;
+
+    if ((meridiem === 'PM') !== isPm) {
+      const shifted = (total + (meridiem === 'PM' ? 720 : -720) + 1440) % 1440;
+      input.value = `${String(Math.floor(shifted / 60)).padStart(2, '0')}:${String(shifted % 60).padStart(2, '0')}`;
+    }
+  }
+
+  document.querySelectorAll(`#tp-${which}-${taskId} .tp-meridiem`).forEach(button => {
     const isChosen = button.textContent === meridiem;
     button.classList.toggle('active', isChosen);
     button.setAttribute('aria-pressed', String(isChosen));
@@ -1377,8 +1367,17 @@ function toggleTaskTime(taskId) {
 }
 
 function focusPicker(taskId, which) {
-  const select = document.querySelector(`#tp-${which}-${taskId} .tp-hour`);
-  if (select) select.focus();
+  const input = document.getElementById(`tp-input-${which}-${taskId}`);
+  if (!input) return;
+
+  input.focus();
+  // Pop the wheel straight open where the browser allows it, so setting a
+  // start leads directly into setting an end.
+  try {
+    input.showPicker();
+  } catch (error) {
+    // Not supported, or needs a fresh gesture — focus alone is the fallback.
+  }
 }
 
 function saveTaskTime(taskId, which) {
@@ -1411,6 +1410,84 @@ function saveTaskTime(taskId, which) {
   if (which === 'start' && !hadStart && task.start && !task.end) {
     focusPicker(taskId, 'end');
   }
+}
+
+function editTaskText(taskId) {
+  const task = dailyTasks.find(t => t.id === taskId);
+  const label = document.querySelector(`.daily-task[data-task-id="${taskId}"] .daily-task-objective`);
+  if (!task || !label) return;
+
+  const current = task.objectiveText;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = current;
+  input.className = 'inline-edit inline-edit-task';
+
+  label.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let settled = false;
+  const save = () => {
+    if (settled) return;
+    settled = true;
+
+    const text = input.value.trim();
+    if (!text || text === current) {
+      renderDailyTasks();
+      return;
+    }
+    renameTask(taskId, text);
+  };
+
+  input.onblur = save;
+  input.onkeydown = event => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      input.blur();
+    }
+    if (event.key === 'Escape') {
+      input.value = current;
+      input.blur();
+    }
+  };
+}
+
+// A goal-derived task is a view of its objective, so renaming it renames the
+// objective rather than letting the two drift apart. Quick tasks own their own
+// text and change alone.
+function renameTask(taskId, text) {
+  const task = dailyTasks.find(t => t.id === taskId);
+  if (!task) return;
+
+  if (task.objectiveRef) {
+    const updated = updateGoal(task.goalId, goal => {
+      const objective = findObjective(goal, task.objectiveRef);
+      if (!objective) return false;
+      objective.text = text;
+    });
+    if (updated) {
+      dailyTasks.forEach(other => {
+        if (other.objectiveId === task.objectiveId) other.objectiveText = text;
+      });
+    }
+  } else if (task.isBoolean && task.goalId) {
+    // The text of a yes/no task is the goal's own title.
+    const updated = updateGoal(task.goalId, goal => { goal.title = text; });
+    if (updated) {
+      dailyTasks.forEach(other => {
+        if (other.goalId !== task.goalId) return;
+        other.goalTitle = text;
+        if (other.isBoolean) other.objectiveText = text;
+      });
+    }
+  } else {
+    task.objectiveText = text;
+  }
+
+  saveDailyTasks();
+  renderPlanner();
 }
 
 function removeDailyTask(taskId) {

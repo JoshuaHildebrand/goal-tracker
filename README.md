@@ -38,7 +38,7 @@ other origin. Pick one way to open it and stay with it. There is no export yet
 | Tab | What it does |
 | --- | --- |
 | **Goals** | Create goals, add objectives, tick them off, set deadlines and per-objective target dates, keep notes. Cards collapse to a one-line summary. |
-| **Today's To-Do** | Pull a day's work from any goal's open objectives, plus free-form quick tasks. Move between days with `‹ ›` to plan tomorrow tonight. Give tasks a start and end time to lay out the day; scheduled tasks sort chronologically above an "Anytime" group. A timeline beside the list plots the day with a live now marker — click it to jump the list to whatever is happening then. Ticking a task here writes straight back to the goal. |
+| **Today's To-Do** | Pull a day's work from any goal's open objectives, plus free-form quick tasks. Move between days with `‹ ›` to plan tomorrow tonight. Give tasks a start and end time to lay out the day; scheduled tasks sort chronologically above an "Anytime" group. A timeline beside the list plots the day with a live now marker — click it to jump the list to whatever is happening then. Rename a task by double-tapping its name — renaming one that came from a goal renames the objective itself. Ticking a task here writes straight back to the goal. |
 | **Calendar** | Month grid marking goal deadlines (🔴), objective target dates (🟡), and completions (dots). Click a marked day for details. Sidebar lists goals by deadline. |
 | **Archive** | Completed goals you've archived, restorable or deletable. |
 
@@ -116,9 +116,10 @@ Passing that string to `new Date()` parses it as UTC and lands on the wrong day
 for anyone west of Greenwich.
 
 Times are stored as 24-hour `HH:MM`, which compares and sorts as a plain
-string. Only display goes through `formatTimeRange()`. The AM/PM control is a
-pair of buttons rather than a native `<input type="time">`, because the native
-meridiem segment can't be styled to show which one is selected.
+string. Only display goes through `formatTimeRange()`. The field is a native
+`<input type="time">` so phones get their own wheel; the AM/PM buttons beside
+it mirror and flip that value, since the input's own meridiem segment can't be
+styled to show which one is selected.
 
 `refreshTimeStates()` runs on a 30-second interval and patches classes and the
 now marker's position in place rather than re-rendering, so the day stays
