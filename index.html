@@ -143,6 +143,13 @@
         <div id="dayDetailsContent"></div>
       </div>
     </div>
+    <footer class="data-footer">
+      <button class="data-btn" onclick="exportData()">Export backup</button>
+      <span class="data-sep">·</span>
+      <button class="data-btn" onclick="document.getElementById('importFile').click()">Import backup</button>
+      <input type="file" id="importFile" accept="application/json,.json"
+        onchange="importData(this)" hidden>
+    </footer>
   </div>
 
   <script src="assets/app.js"></script>
