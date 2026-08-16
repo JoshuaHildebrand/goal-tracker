@@ -1,0 +1,18 @@
+# OS cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# Node, if tooling ever gets added
+node_modules/
+npm-debug.log*
+
+# Browser-download duplicates, e.g. "goal-tracker-v2 (3).html".
+# Edit the files in place and commit; git already keeps the history.
+* (*).html
