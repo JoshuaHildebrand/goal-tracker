@@ -7,14 +7,31 @@ list, and see deadlines and progress on a calendar. Everything is stored in
 
 ## Running it
 
-Open `index.html` in a browser. That's it.
+Hosted on GitHub Pages, which serves `main`:
 
-Because the CSS and JS are separate files, opening it straight off disk
-(`file://`) works, and so does any static host. To serve it locally:
+**https://joshuahildebrand.github.io/goal-tracker/**
+
+That's the easiest way to use it — bookmark it, it works on a phone, and it
+updates whenever `main` changes. (To set this up on a fork: **Settings** →
+**Pages** → Source *Deploy from a branch* → `main` / `root`.)
+
+To run it locally instead, open `index.html` in a browser. `index.html` and
+`assets/` must stay in the same folder — the page loads its CSS and JS by
+relative path, so moving the HTML on its own gives you an unstyled, inert page.
+Opening straight off disk (`file://`) works, and so does any static host:
 
 ```sh
 python3 -m http.server 8000    # then open http://localhost:8000
 ```
+
+### Your data is tied to the URL you use
+
+Everything is stored in `localStorage`, which browsers scope per origin. Goals
+saved on the Pages URL won't appear when you open the same app from disk, or in
+a different browser, and vice versa — the data isn't lost, it's filed under the
+other origin. Pick one way to open it and stay with it. There is no export yet
+(see Known issues), so to move data between origins you currently have to copy
+`localStorage` across by hand in the browser console.
 
 ## The four tabs
 
@@ -99,7 +116,9 @@ for anyone west of Greenwich.
   records — worth doing before building anything else on top of the to-do list.
 - **`dailyTasks` grows forever.** Every day's tasks stay in one array; only
   today's are ever read. It needs pruning, or a history view that uses them.
-- **No export/import.** Clearing site data loses everything.
+- **No export/import.** Clearing site data loses everything, and there's no
+  supported way to move goals between origins (disk vs. Pages vs. another
+  browser). An export/import button would fix both at once.
 
 ## Ideas
 
