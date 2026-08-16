@@ -1125,8 +1125,6 @@ function renderDailyTask(task, { clashing, now }) {
           onchange="toggleDailyTaskCompletion('${task.id}')">
         <div class="daily-task-text">
           <div class="daily-task-actions">
-            <button class="task-edit" onclick="editTaskText('${task.id}')"
-              aria-label="Rename task">&#9998;</button>
             <button class="task-time-toggle ${task.start ? 'set' : ''}"
               onclick="toggleTaskTime('${task.id}')" aria-label="Set time">&#128336;</button>
             <button class="btn-remove" onclick="removeDailyTask('${task.id}')"

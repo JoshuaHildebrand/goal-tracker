@@ -38,7 +38,7 @@ other origin. Pick one way to open it and stay with it. There is no export yet
 | Tab | What it does |
 | --- | --- |
 | **Goals** | Create goals, add objectives, tick them off, set deadlines and per-objective target dates, keep notes. Cards collapse to a one-line summary. |
-| **Today's To-Do** | Pull a day's work from any goal's open objectives, plus free-form quick tasks. Move between days with `‹ ›` to plan tomorrow tonight. Give tasks a start and end time to lay out the day; scheduled tasks sort chronologically above an "Anytime" group. A timeline beside the list plots the day with a live now marker — click it to jump the list to whatever is happening then. Rename a task with the pencil or a double-tap — renaming one that came from a goal renames the objective itself. Ticking a task here writes straight back to the goal. |
+| **Today's To-Do** | Pull a day's work from any goal's open objectives, plus free-form quick tasks. Move between days with `‹ ›` to plan tomorrow tonight. Give tasks a start and end time to lay out the day; scheduled tasks sort chronologically above an "Anytime" group. A timeline beside the list plots the day with a live now marker — click it to jump the list to whatever is happening then. Rename a task by double-tapping its name — renaming one that came from a goal renames the objective itself. Ticking a task here writes straight back to the goal. |
 | **Calendar** | Month grid marking goal deadlines (🔴), objective target dates (🟡), and completions (dots). Click a marked day for details. Sidebar lists goals by deadline. |
 | **Archive** | Completed goals you've archived, restorable or deletable. |
 

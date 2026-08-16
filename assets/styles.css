@@ -681,27 +681,6 @@ textarea {
   margin-bottom: 0.1rem;
 }
 
-.task-edit {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  padding: 0.15rem 0.25rem;
-  opacity: 0.35;
-  flex-shrink: 0;
-  transition: opacity 0.2s ease, color 0.2s ease;
-}
-
-.task-edit:hover {
-  opacity: 1;
-  color: var(--accent-light);
-}
-
-.daily-task:hover .task-edit {
-  opacity: 0.8;
-}
-
 .inline-edit-task {
   width: 100%;
   font-size: 0.95rem;
@@ -711,6 +690,15 @@ textarea {
   font-size: 0.95rem;
   color: var(--text);
   line-height: 1.4;
+  cursor: text;
+  /* Without this a double-tap is claimed by the browser's zoom gesture and
+     dblclick never fires. Pinch-zoom is unaffected. */
+  touch-action: manipulation;
+}
+
+.daily-task-objective:hover {
+  text-decoration: underline dotted var(--text-muted);
+  text-underline-offset: 3px;
 }
 
 .daily-task.completed .daily-task-objective {
@@ -1365,7 +1353,6 @@ textarea {
 /* Row actions fade in on hover, which never happens on a touch screen — show
    them there instead of leaving them all but invisible. */
 @media (hover: none) {
-  .task-edit,
   .task-time-toggle,
   .objective-checkbox .btn-remove,
   .objective-checkbox .target-date-toggle {
