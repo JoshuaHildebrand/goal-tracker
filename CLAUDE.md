@@ -26,9 +26,15 @@ assets/app.js       all behaviour
   `new Date('2026-08-16')` parses as UTC and shows the wrong day west of
   Greenwich.
 - **Style with classes in `styles.css`**, not `style="…"` in template strings.
-  Colours come from the `:root` custom properties — `--accent` / `--accent-light`
-  for anything the user reads. `--primary` is near-black and only works as a
-  background.
+  Colours come from the `:root` custom properties. The theme is Nightwing —
+  electric blue on near-black — so `--accent` / `--accent-light` carry the
+  identity and `--glow` / `--glow-soft` / `--edge` / `--accent-wash` are the
+  translucent blues built from them. `--primary` is a near-black navy and only
+  works as a background.
+- **Keep urgency out of the accent.** `--deadline-red` and `--target-yellow`
+  exist so a deadline, an overdue task or a destructive button still reads as
+  urgent against a blue interface. Don't restyle those in blue for consistency
+  — the contrast is the point. `--success` is the teal green.
 - **Escape interpolated user text** with `escapeHtml()`. Never interpolate a
   title or objective into an `onclick` attribute — pass ids and look the text
   up in the handler.

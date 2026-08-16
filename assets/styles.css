@@ -1,18 +1,27 @@
 :root {
-  --primary: #1a0000;
-  --primary-light: #2d0a0a;
-  --accent: #8b0000;
-  --accent-light: #c41e1e;
-  --bg: #0a0a0a;
-  --surface: #1a1a1a;
-  --text: #e0e0e0;
-  --text-muted: #888888;
-  --border: #2a2a2a;
-  --success: #4a6741;
-  --shadow: rgba(0, 0, 0, 0.6);
-  --deadline-red: #c41e1e;
-  --target-yellow: #cc9900;
-  --glow-red: rgba(139, 0, 0, 0.5);
+  /* Nightwing: Blüdhaven blue on near-black. Electric blue carries the
+     identity; red and amber are kept strictly for urgency so a deadline still
+     reads as a deadline rather than blending into the accent. */
+  --primary: #0b1220;
+  --primary-light: #16233a;
+  --accent: #1668d8;
+  --accent-light: #3aa6ff;
+  --bg: #060910;
+  --surface: #0f1626;
+  --text: #e8eff8;
+  --text-muted: #8ea3bf;
+  --border: #1d2b42;
+  --success: #2ea87f;
+  --shadow: rgba(0, 0, 0, 0.65);
+  --deadline-red: #ef4d4d;
+  --target-yellow: #f0a92c;
+
+  --glow: rgba(58, 166, 255, 0.45);
+  --glow-soft: rgba(58, 166, 255, 0.28);
+  --edge: rgba(58, 166, 255, 0.18);
+  --accent-wash: rgba(58, 166, 255, 0.16);
+  --success-glow: rgba(46, 168, 127, 0.5);
+  --danger-wash: rgba(239, 77, 77, 0.18);
 }
 
 * {
@@ -22,7 +31,7 @@
 }
 
 body {
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Barlow', sans-serif;
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;
@@ -53,16 +62,28 @@ header::before {
   background: linear-gradient(90deg, transparent, var(--accent), transparent);
 }
 
+/* Swept wings, the one motif the whole theme hangs off. Inline SVG so it stays
+   a single self-contained file with no asset to fetch. */
+.wing-mark {
+  display: block;
+  width: min(260px, 62%);
+  height: auto;
+  margin: 0 auto 0.4rem;
+  fill: var(--accent-light);
+  filter: drop-shadow(0 0 10px var(--glow));
+  animation: fadeInDown 0.6s ease-out;
+}
+
 h1 {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Rajdhani', sans-serif;
   font-size: 3.5rem;
   font-weight: 700;
   color: var(--text);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   margin-bottom: 0.5rem;
   animation: fadeInDown 0.6s ease-out;
   text-transform: uppercase;
-  text-shadow: 0 0 20px var(--glow-red), 0 0 40px rgba(139, 0, 0, 0.3);
+  text-shadow: 0 0 22px var(--glow), 0 0 48px var(--glow-soft);
 }
 
 .subtitle {
@@ -88,7 +109,7 @@ h1 {
   padding: 0.75rem 1.5rem;
   background: transparent;
   border: none;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Barlow', sans-serif;
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-muted);
@@ -103,13 +124,13 @@ h1 {
 
 .tab:hover {
   color: var(--accent-light);
-  text-shadow: 0 0 10px var(--glow-red);
+  text-shadow: 0 0 10px var(--glow);
 }
 
 .tab.active {
   color: var(--text);
   border-bottom-color: var(--accent);
-  text-shadow: 0 0 15px var(--glow-red);
+  text-shadow: 0 0 15px var(--glow);
 }
 
 .tab-content {
@@ -126,7 +147,7 @@ h1 {
   background: var(--surface);
   border-radius: 4px;
   padding: 0.75rem 1.25rem;
-  box-shadow: 0 4px 20px var(--shadow), inset 0 0 0 1px rgba(139, 0, 0, 0.2);
+  box-shadow: 0 4px 20px var(--shadow), inset 0 0 0 1px var(--edge);
   border: 1px solid var(--border);
   transition: all 0.2s ease;
   margin-bottom: 0.75rem;
@@ -142,12 +163,12 @@ h1 {
   width: 3px;
   height: 100%;
   background: var(--accent);
-  box-shadow: 0 0 10px var(--glow-red);
+  box-shadow: 0 0 10px var(--glow);
 }
 
 .goal-card:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.8), 0 0 20px var(--glow-red);
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.8), 0 0 20px var(--glow);
   border-color: var(--accent);
 }
 
@@ -165,7 +186,7 @@ h1 {
 }
 
 .goal-title {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Rajdhani', sans-serif;
   font-size: 1.15rem;
   font-weight: 700;
   color: var(--text);
@@ -177,7 +198,7 @@ h1 {
 
 .goal-header:hover .goal-title {
   color: var(--accent-light);
-  text-shadow: 0 0 10px var(--glow-red);
+  text-shadow: 0 0 10px var(--glow);
 }
 
 .goal-header-right {
@@ -227,22 +248,22 @@ h1 {
   color: white;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 0 10px var(--glow-red), 0 2px 8px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 10px var(--glow), 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 .goal-deadline:hover {
   transform: scale(1.05);
-  box-shadow: 0 0 15px var(--accent), 0 0 30px var(--glow-red);
+  box-shadow: 0 0 15px var(--accent), 0 0 30px var(--glow);
 }
 
 .goal-deadline.overdue {
-  background: var(--accent-light);
-  animation: pulse-red 2s ease-in-out infinite;
+  background: var(--deadline-red);
+  animation: pulse-accent 2s ease-in-out infinite;
 }
 
-@keyframes pulse-red {
-  0%, 100% { box-shadow: 0 0 10px var(--glow-red); }
-  50% { box-shadow: 0 0 20px var(--accent), 0 0 40px var(--glow-red); }
+@keyframes pulse-accent {
+  0%, 100% { box-shadow: 0 0 10px var(--glow); }
+  50% { box-shadow: 0 0 20px var(--accent), 0 0 40px var(--glow); }
 }
 
 .goal-deadline.editing {
@@ -264,14 +285,14 @@ h1 {
 .completed-badge {
   background: var(--success);
   color: white;
-  box-shadow: 0 0 10px rgba(74, 103, 65, 0.5);
+  box-shadow: 0 0 10px var(--success-glow);
 }
 
 .boolean-goal-badge {
   background: var(--primary);
   color: var(--accent-light);
   border: 1px solid var(--accent);
-  box-shadow: 0 0 10px var(--glow-red);
+  box-shadow: 0 0 10px var(--glow);
 }
 
 /* Add Goal Section - Collapsible */
@@ -280,7 +301,7 @@ h1 {
   border-radius: 4px;
   padding: 1rem 1.5rem;
   margin-bottom: 1.5rem;
-  box-shadow: 0 4px 20px var(--shadow), inset 0 0 0 1px rgba(139, 0, 0, 0.2);
+  box-shadow: 0 4px 20px var(--shadow), inset 0 0 0 1px var(--edge);
   border: 1px solid var(--border);
   transition: all 0.3s ease;
   position: relative;
@@ -294,7 +315,7 @@ h1 {
   width: 3px;
   height: 100%;
   background: var(--accent);
-  box-shadow: 0 0 10px var(--glow-red);
+  box-shadow: 0 0 10px var(--glow);
 }
 
 .add-goal-header {
@@ -306,7 +327,7 @@ h1 {
 }
 
 .add-goal-header h2 {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Rajdhani', sans-serif;
   font-size: 1.3rem;
   font-weight: 700;
   color: var(--text);
@@ -316,7 +337,7 @@ h1 {
 
 .add-goal-header:hover h2 {
   color: var(--accent-light);
-  text-shadow: 0 0 10px var(--glow-red);
+  text-shadow: 0 0 10px var(--glow);
 }
 
 .add-goal-content {
@@ -351,7 +372,7 @@ textarea {
   padding: 0.75rem 0.875rem;
   border: 2px solid var(--border);
   border-radius: 2px;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Barlow', sans-serif;
   font-size: 0.95rem;
   transition: all 0.3s ease;
   background: var(--bg);
@@ -365,7 +386,7 @@ textarea:focus {
   border-color: var(--accent);
   background: var(--surface);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 15px var(--glow-red);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 15px var(--glow);
 }
 
 textarea {
@@ -392,7 +413,7 @@ textarea {
   padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 2px;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Barlow', sans-serif;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
@@ -404,7 +425,7 @@ textarea {
 .btn-primary {
   background: var(--accent);
   color: white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 15px var(--glow-red);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 15px var(--glow);
   border: 1px solid var(--accent-light);
 }
 
@@ -419,7 +440,7 @@ textarea {
   color: var(--accent-light);
   border: 2px solid var(--accent);
   padding: 0.65rem 1.4rem;
-  box-shadow: 0 0 10px var(--glow-red);
+  box-shadow: 0 0 10px var(--glow);
 }
 
 .btn-secondary:hover {
@@ -441,25 +462,27 @@ textarea {
 }
 
 .btn-remove:hover {
-  background: rgba(196, 30, 30, 0.2);
+  background: var(--danger-wash);
   transform: scale(1.1);
   text-shadow: 0 0 10px var(--accent);
 }
 
+/* Destructive, so it reads red rather than sharing the accent with every
+   other action — which it did when the whole theme was one colour. */
 .btn-delete {
   background: transparent;
-  color: var(--accent-light);
-  border: 1px solid var(--accent);
+  color: var(--deadline-red);
+  border: 1px solid var(--deadline-red);
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   margin-top: 1rem;
-  box-shadow: 0 0 10px var(--glow-red);
+  box-shadow: none;
 }
 
 .btn-delete:hover {
-  background: var(--accent);
+  background: var(--deadline-red);
   color: white;
-  box-shadow: 0 0 20px var(--accent);
+  box-shadow: 0 0 18px var(--danger-wash);
 }
 
 .btn-archive {
@@ -491,7 +514,7 @@ textarea {
 .objective-checkbox:hover {
   background: var(--surface);
   border-color: var(--accent);
-  box-shadow: 0 0 10px var(--glow-red);
+  box-shadow: 0 0 10px var(--glow);
 }
 
 .objective-checkbox input[type="checkbox"] {
@@ -588,7 +611,7 @@ textarea {
   background: linear-gradient(90deg, var(--accent), var(--accent-light));
   border-radius: 3px;
   transition: width 0.5s ease;
-  box-shadow: 0 0 10px var(--glow-red);
+  box-shadow: 0 0 10px var(--glow);
 }
 
 /* Daily Planner */
@@ -596,12 +619,12 @@ textarea {
   background: var(--surface);
   border-radius: 4px;
   padding: 1.25rem;
-  box-shadow: 0 4px 30px var(--shadow), inset 0 0 0 1px rgba(139, 0, 0, 0.2);
+  box-shadow: 0 4px 30px var(--shadow), inset 0 0 0 1px var(--edge);
   border: 1px solid var(--border);
 }
 
 .daily-planner h2 {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Rajdhani', sans-serif;
   font-size: 1.75rem;
   font-weight: 700;
   color: var(--text);
@@ -645,7 +668,7 @@ textarea {
 .daily-task:hover {
   transform: translateX(4px);
   border-color: var(--accent);
-  box-shadow: 0 0 10px var(--glow-red);
+  box-shadow: 0 0 10px var(--glow);
 }
 
 .daily-task.completed {
@@ -795,7 +818,7 @@ textarea {
   background: var(--surface);
   border-radius: 4px;
   padding: 2rem;
-  box-shadow: 0 4px 30px var(--shadow), inset 0 0 0 1px rgba(139, 0, 0, 0.2);
+  box-shadow: 0 4px 30px var(--shadow), inset 0 0 0 1px var(--edge);
   border: 1px solid var(--border);
 }
 
@@ -807,7 +830,7 @@ textarea {
 }
 
 .calendar-header h2 {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Rajdhani', sans-serif;
   font-size: 1.75rem;
   font-weight: 700;
   color: var(--text);
@@ -834,7 +857,7 @@ textarea {
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
-  box-shadow: 0 0 10px var(--glow-red);
+  box-shadow: 0 0 10px var(--glow);
 }
 
 .calendar-nav button:hover {
@@ -885,7 +908,7 @@ textarea {
 .calendar-day:hover {
   border-color: var(--accent);
   transform: scale(1.05);
-  box-shadow: 0 0 15px var(--glow-red);
+  box-shadow: 0 0 15px var(--glow);
 }
 
 .calendar-day.other-month {
@@ -901,7 +924,7 @@ textarea {
 }
 
 .calendar-day.has-completions {
-  background: linear-gradient(135deg, var(--success) 0%, rgba(74, 103, 65, 0.5) 100%);
+  background: linear-gradient(135deg, var(--success) 0%, var(--success-glow) 100%);
   color: white;
   border-color: var(--success);
 }
@@ -909,7 +932,7 @@ textarea {
 .calendar-day.has-deadline {
   border: 3px solid var(--deadline-red);
   border-style: dashed;
-  box-shadow: 0 0 10px var(--glow-red);
+  box-shadow: 0 0 10px var(--glow);
 }
 
 .calendar-day.has-target {
@@ -981,7 +1004,7 @@ textarea {
 }
 
 .goals-sidebar h3 {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Rajdhani', sans-serif;
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--accent-light);
@@ -1082,7 +1105,7 @@ textarea {
 }
 
 .day-details-header h3 {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Rajdhani', sans-serif;
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--accent-light);
@@ -1184,7 +1207,7 @@ textarea {
     box-shadow: 0 2px 20px var(--shadow);
   }
   50% {
-    box-shadow: 0 8px 40px rgba(244, 162, 97, 0.4);
+    box-shadow: 0 8px 40px var(--glow);
     transform: scale(1.02);
   }
 }
@@ -1215,21 +1238,21 @@ textarea {
 
 /* The block's end has passed and it isn't done — today only. */
 .daily-task.overdue {
-  border-color: var(--accent);
+  border-color: var(--deadline-red);
 }
 
 .daily-task.overdue .daily-task-time::after {
   content: ' · past due';
   font-weight: 600;
-  color: var(--accent-light);
+  color: var(--deadline-red);
 }
 
 /* Happening right now — carried by emphasis, not a word. */
 .daily-task.now {
   border-color: var(--accent-light);
   border-left: 3px solid var(--accent-light);
-  background: linear-gradient(90deg, rgba(196, 30, 30, 0.16), var(--surface) 60%);
-  box-shadow: 0 0 18px var(--glow-red);
+  background: linear-gradient(90deg, var(--accent-wash), var(--surface) 60%);
+  box-shadow: 0 0 18px var(--glow);
 }
 
 .daily-task.now .daily-task-objective {
@@ -1243,7 +1266,7 @@ textarea {
 
 @keyframes task-ping {
   0%   { box-shadow: 0 0 0 0 var(--accent-light); }
-  100% { box-shadow: 0 0 0 14px rgba(196, 30, 30, 0); }
+  100% { box-shadow: 0 0 0 14px rgba(58, 166, 255, 0); }
 }
 
 .daily-task.pinged {
@@ -1450,7 +1473,7 @@ textarea {
 .time-picker .tp-input:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 8px var(--glow-red);
+  box-shadow: 0 0 8px var(--glow);
 }
 
 .tp-meridiem {
@@ -1476,7 +1499,7 @@ textarea {
   background: var(--accent);
   border-color: var(--accent-light);
   color: #fff;
-  box-shadow: 0 0 10px var(--glow-red);
+  box-shadow: 0 0 10px var(--glow);
 }
 
 /* Its block runs into the next one's. Flagged, not prevented. */
@@ -1581,7 +1604,7 @@ textarea {
   justify-content: center;
   flex-shrink: 0;
   transition: all 0.2s ease;
-  box-shadow: 0 0 10px var(--glow-red);
+  box-shadow: 0 0 10px var(--glow);
 }
 
 .planner-nav button:hover {
@@ -1787,7 +1810,7 @@ textarea {
 }
 
 .archive-header h2 {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Rajdhani', sans-serif;
   font-size: 2.5rem;
   font-weight: 700;
   color: var(--text);
