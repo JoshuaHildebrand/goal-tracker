@@ -1173,6 +1173,118 @@ textarea {
   }
 }
 
+/* Task Scheduling */
+.daily-task-time {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent-light);
+  letter-spacing: 0.04em;
+  margin-top: 0.3rem;
+}
+
+.daily-task.completed .daily-task-time {
+  color: var(--text-muted);
+}
+
+/* The block's end has passed and it isn't done — today only. */
+.daily-task.overdue {
+  border-color: var(--accent);
+}
+
+.daily-task.overdue .daily-task-time::after {
+  content: ' · past due';
+  font-weight: 600;
+  color: var(--accent-light);
+}
+
+/* Happening right now. */
+.daily-task.now {
+  border-color: var(--accent-light);
+  box-shadow: 0 0 12px var(--glow-red);
+}
+
+.daily-task.now .daily-task-time::after {
+  content: ' · now';
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* Its block runs into the next one's. Flagged, not prevented. */
+.daily-task.clashing .daily-task-time::before {
+  content: '\26A0 ';
+  color: var(--target-yellow);
+}
+
+.task-time-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+  padding: 0.15rem 0.25rem;
+  opacity: 0.35;
+  flex-shrink: 0;
+  transition: opacity 0.2s ease;
+}
+
+.task-time-toggle:hover,
+.task-time-toggle.set {
+  opacity: 1;
+}
+
+.daily-task:hover .task-time-toggle {
+  opacity: 0.8;
+}
+
+.task-time-section {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: -0.35rem 0 0.75rem 0.5rem;
+  padding: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 2px;
+}
+
+.task-time-section.show {
+  display: flex;
+}
+
+.task-time-section label {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.task-time-section input[type="time"] {
+  width: auto;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.85rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+}
+
+.time-warning {
+  flex-basis: 100%;
+  font-size: 0.75rem;
+  color: var(--accent-light);
+}
+
+.task-group-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 1.25rem 0 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
 /* Planner Day Switcher */
 .planner-nav {
   display: flex;

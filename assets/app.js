@@ -46,6 +46,10 @@ let dailyTasks = [];
 // built tonight. Resets to today on reload.
 let plannerDate = startOfToday();
 
+// Which task has its time editor open. Held here so re-rendering after a save
+// (which re-sorts the list) doesn't collapse the editor mid-edit.
+let openTimeTaskId = null;
+
 /* ---------------------------------------------------------------- storage */
 
 function goalKey(id) {
@@ -255,6 +259,55 @@ function formatDateKey(date) {
 
 function formatDeadline(date) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Times are stored as 24-hour 'HH:MM', which sorts and compares as plain
+// strings. Only display goes through 12-hour formatting.
+function formatTime(hhmm) {
+  const [hours, minutes] = hhmm.split(':').map(Number);
+  return {
+    text: `${hours % 12 || 12}:${String(minutes).padStart(2, '0')}`,
+    period: hours < 12 ? 'AM' : 'PM'
+  };
+}
+
+// '9:00–9:30 AM' when both sides share a meridiem, '11:30 AM–1:00 PM' when not.
+function formatTimeRange(start, end) {
+  const from = formatTime(start);
+  if (!end) return `${from.text} ${from.period}`;
+
+  const to = formatTime(end);
+  return from.period === to.period
+    ? `${from.text}–${to.text} ${to.period}`
+    : `${from.text} ${from.period}–${to.text} ${to.period}`;
+}
+
+// An end at or before its start is nonsense, so it's ignored for display and
+// flagged rather than silently dropped or blocked while the user is mid-edit.
+function hasValidEnd(task) {
+  return Boolean(task.start && task.end && task.end > task.start);
+}
+
+function currentTimeKey() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+}
+
+// Ids of scheduled tasks whose block runs into the next one's. Flagged, not
+// prevented — double-booking is sometimes deliberate.
+function overlappingTaskIds(scheduled) {
+  const clashing = new Set();
+
+  scheduled.forEach((task, i) => {
+    const next = scheduled[i + 1];
+    if (!next || !hasValidEnd(task)) return;
+    if (task.end > next.start) {
+      clashing.add(task.id);
+      clashing.add(next.id);
+    }
+  });
+
+  return clashing;
 }
 
 function startOfToday() {
@@ -1013,17 +1066,94 @@ function renderDailyTasks() {
     return;
   }
 
-  container.innerHTML = tasks.map(task => `
-    <div class="daily-task ${task.completed ? 'completed' : ''}">
-      <input type="checkbox" ${task.completed ? 'checked' : ''}
-        onchange="toggleDailyTaskCompletion('${task.id}')">
-      <div class="daily-task-text">
-        <div class="daily-task-goal">from ${escapeHtml(task.goalTitle)}</div>
-        <div class="daily-task-objective">${escapeHtml(task.objectiveText)}</div>
+  const scheduled = tasks.filter(task => task.start).sort((a, b) => a.start.localeCompare(b.start));
+  const anytime = tasks.filter(task => !task.start);
+
+  const clashing = overlappingTaskIds(scheduled);
+  // "Past due" only means anything on the day you're actually living.
+  const now = plannerKey() === formatDateKey(startOfToday()) ? currentTimeKey() : null;
+
+  let html = scheduled.map(task => renderDailyTask(task, { clashing, now })).join('');
+
+  if (anytime.length > 0) {
+    if (scheduled.length > 0) html += '<div class="task-group-label">Anytime</div>';
+    html += anytime.map(task => renderDailyTask(task, { clashing, now })).join('');
+  }
+
+  container.innerHTML = html;
+}
+
+function renderDailyTask(task, { clashing, now }) {
+  // A block you're in the middle of isn't late. Lateness is measured from the
+  // end of the block, or from the start when there's no end to measure to.
+  const deadline = hasValidEnd(task) ? task.end : task.start;
+  const live = now && task.start && !task.completed;
+
+  const inProgress = live && hasValidEnd(task) && task.start <= now && now < task.end;
+  const overdue = live && !inProgress && deadline < now;
+
+  const classes = [
+    'daily-task',
+    task.completed ? 'completed' : '',
+    clashing.has(task.id) ? 'clashing' : '',
+    inProgress ? 'now' : '',
+    overdue ? 'overdue' : ''
+  ].filter(Boolean).join(' ');
+
+  const timeLabel = task.start
+    ? `<div class="daily-task-time">${formatTimeRange(task.start, hasValidEnd(task) ? task.end : null)}</div>`
+    : '';
+
+  const badEnd = task.start && task.end && !hasValidEnd(task);
+
+  return `
+    <div>
+      <div class="${classes}">
+        <input type="checkbox" ${task.completed ? 'checked' : ''}
+          onchange="toggleDailyTaskCompletion('${task.id}')">
+        <div class="daily-task-text">
+          <div class="daily-task-goal">from ${escapeHtml(task.goalTitle)}</div>
+          <div class="daily-task-objective">${escapeHtml(task.objectiveText)}</div>
+          ${timeLabel}
+        </div>
+        <button class="task-time-toggle ${task.start ? 'set' : ''}"
+          onclick="toggleTaskTime('${task.id}')" aria-label="Set time">&#128336;</button>
+        <button class="btn-remove" onclick="removeDailyTask('${task.id}')">&times;</button>
       </div>
-      <button class="btn-remove" onclick="removeDailyTask('${task.id}')">&times;</button>
+      <div class="task-time-section ${openTimeTaskId === task.id ? 'show' : ''}"
+        id="time-section-${task.id}">
+        <label for="task-start-${task.id}">From</label>
+        <input type="time" id="task-start-${task.id}" value="${task.start || ''}"
+          onchange="saveTaskTime('${task.id}')">
+        <label for="task-end-${task.id}">to</label>
+        <input type="time" id="task-end-${task.id}" value="${task.end || ''}"
+          onchange="saveTaskTime('${task.id}')">
+        ${badEnd ? '<div class="time-warning">End must be after the start time.</div>' : ''}
+      </div>
     </div>
-  `).join('');
+  `;
+}
+
+function toggleTaskTime(taskId) {
+  openTimeTaskId = openTimeTaskId === taskId ? null : taskId;
+  renderDailyTasks();
+
+  const input = document.getElementById(`task-start-${taskId}`);
+  if (openTimeTaskId && input) input.focus();
+}
+
+function saveTaskTime(taskId) {
+  const task = dailyTasks.find(t => t.id === taskId);
+  if (!task) return;
+
+  task.start = document.getElementById(`task-start-${taskId}`).value || null;
+  task.end = document.getElementById(`task-end-${taskId}`).value || null;
+
+  // An end with no start has nothing to anchor it.
+  if (!task.start) task.end = null;
+
+  saveDailyTasks();
+  renderDailyTasks(); // re-sorts; openTimeTaskId keeps this row's editor open
 }
 
 function removeDailyTask(taskId) {
