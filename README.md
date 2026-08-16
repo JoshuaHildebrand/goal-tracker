@@ -38,7 +38,7 @@ other origin. Pick one way to open it and stay with it. There is no export yet
 | Tab | What it does |
 | --- | --- |
 | **Goals** | Create goals, add objectives, tick them off, set deadlines and per-objective target dates, keep notes. Cards collapse to a one-line summary. |
-| **Today's To-Do** | Pull today's work from any goal's open objectives, plus free-form quick tasks. Ticking a task here writes straight back to the goal. |
+| **Today's To-Do** | Pull a day's work from any goal's open objectives, plus free-form quick tasks. Move between days with `‹ ›` to plan tomorrow tonight. Give tasks a start and end time to lay out the day; scheduled tasks sort chronologically above an "Anytime" group. Ticking a task here writes straight back to the goal. |
 | **Calendar** | Month grid marking goal deadlines (🔴), objective target dates (🟡), and completions (dots). Click a marked day for details. Sidebar lists goals by deadline. |
 | **Archive** | Completed goals you've archived, restorable or deletable. |
 
@@ -94,6 +94,8 @@ Two keys in `localStorage`:
   objectiveRef: '<objectiveId>' | null,   // which objective, by stable id
   goalId, goalTitle, objectiveText,
   date: '2026-08-16',           // the day it belongs to
+  start: '13:00' | null,        // 24h 'HH:MM'; absent means "anytime"
+  end: '15:00' | null,          // ignored unless later than start
   completed: false,
   isBoolean: false,
   isQuickTask: true             // present only on free-form tasks
@@ -112,6 +114,11 @@ normalising older records.
 Dates are stored as `YYYY-MM-DD` and must be parsed with `parseLocalDate()`.
 Passing that string to `new Date()` parses it as UTC and lands on the wrong day
 for anyone west of Greenwich.
+
+Times are stored as 24-hour `HH:MM`, which compares and sorts as a plain
+string. Only display goes through `formatTimeRange()`. "Past due" and "now"
+are worked out at render time, so they don't update on their own while a tab
+sits open — reload to refresh them.
 
 ## Known issues
 
