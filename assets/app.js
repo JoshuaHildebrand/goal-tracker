@@ -50,6 +50,10 @@ let plannerDate = startOfToday();
 // (which re-sorts the list) doesn't collapse the editor mid-edit.
 let openTimeTaskId = null;
 
+// The scheduled tasks currently drawn, in the order shown. The timeline reads
+// this to map a click back to a task.
+let scheduledForDay = [];
+
 /* ---------------------------------------------------------------- storage */
 
 function goalKey(id) {
@@ -286,6 +290,11 @@ function formatTimeRange(start, end) {
 // flagged rather than silently dropped or blocked while the user is mid-edit.
 function hasValidEnd(task) {
   return Boolean(task.start && task.end && task.end > task.start);
+}
+
+function minutesOf(hhmm) {
+  const [hours, minutes] = hhmm.split(':').map(Number);
+  return hours * 60 + minutes;
 }
 
 function currentTimeKey() {
@@ -1063,6 +1072,8 @@ function renderDailyTasks() {
 
   if (tasks.length === 0) {
     container.innerHTML = '<div class="empty-planner">Nothing planned for this day yet.</div>';
+    scheduledForDay = [];
+    renderDayTimeline([], null);
     return;
   }
 
@@ -1070,8 +1081,8 @@ function renderDailyTasks() {
   const anytime = tasks.filter(task => !task.start);
 
   const clashing = overlappingTaskIds(scheduled);
-  // "Past due" only means anything on the day you're actually living.
-  const now = plannerKey() === formatDateKey(startOfToday()) ? currentTimeKey() : null;
+  // "Now" and "past due" only mean anything on the day you're actually living.
+  const now = plannerIsToday() ? currentTimeKey() : null;
 
   let html = scheduled.map(task => renderDailyTask(task, { clashing, now })).join('');
 
@@ -1081,38 +1092,39 @@ function renderDailyTasks() {
   }
 
   container.innerHTML = html;
+
+  scheduledForDay = scheduled;
+  renderDayTimeline(scheduled, now);
 }
 
 function renderDailyTask(task, { clashing, now }) {
-  // A block you're in the middle of isn't late. Lateness is measured from the
-  // end of the block, or from the start when there's no end to measure to.
-  const deadline = hasValidEnd(task) ? task.end : task.start;
-  const live = now && task.start && !task.completed;
-
-  const inProgress = live && hasValidEnd(task) && task.start <= now && now < task.end;
-  const overdue = live && !inProgress && deadline < now;
+  const state = taskTimeState(task, now);
 
   const classes = [
     'daily-task',
     task.completed ? 'completed' : '',
     clashing.has(task.id) ? 'clashing' : '',
-    inProgress ? 'now' : '',
-    overdue ? 'overdue' : ''
+    state
   ].filter(Boolean).join(' ');
 
+  // What's live now is shown by emphasis rather than a word, so the list can be
+  // read at a glance. The label stays for screen readers, which get nothing
+  // from a glow.
   const timeLabel = task.start
-    ? `<div class="daily-task-time">${formatTimeRange(task.start, hasValidEnd(task) ? task.end : null)}</div>`
+    ? `<div class="daily-task-time">${formatTimeRange(task.start, hasValidEnd(task) ? task.end : null)}
+         ${state === 'now' ? '<span class="sr-only">happening now</span>' : ''}</div>`
     : '';
 
   const badEnd = task.start && task.end && !hasValidEnd(task);
 
   return `
     <div>
-      <div class="${classes}">
+      <div class="${classes}" data-task-id="${task.id}"
+        ${state === 'now' ? 'aria-current="time"' : ''}>
         <input type="checkbox" ${task.completed ? 'checked' : ''}
           onchange="toggleDailyTaskCompletion('${task.id}')">
         <div class="daily-task-text">
-          <div class="daily-task-goal">from ${escapeHtml(task.goalTitle)}</div>
+          ${task.isQuickTask ? '' : `<div class="daily-task-goal">from ${escapeHtml(task.goalTitle)}</div>`}
           <div class="daily-task-objective">${escapeHtml(task.objectiveText)}</div>
           ${timeLabel}
         </div>
@@ -1122,38 +1134,283 @@ function renderDailyTask(task, { clashing, now }) {
       </div>
       <div class="task-time-section ${openTimeTaskId === task.id ? 'show' : ''}"
         id="time-section-${task.id}">
-        <label for="task-start-${task.id}">From</label>
-        <input type="time" id="task-start-${task.id}" value="${task.start || ''}"
-          onchange="saveTaskTime('${task.id}')">
-        <label for="task-end-${task.id}">to</label>
-        <input type="time" id="task-end-${task.id}" value="${task.end || ''}"
-          onchange="saveTaskTime('${task.id}')">
+        <div class="time-field"><span class="time-field-label">From</span>
+          ${renderTimePicker(task.id, 'start', task.start)}</div>
+        <div class="time-field"><span class="time-field-label">To</span>
+          ${renderTimePicker(task.id, 'end', task.end)}</div>
         ${badEnd ? '<div class="time-warning">End must be after the start time.</div>' : ''}
       </div>
     </div>
   `;
 }
 
+/* --------------------------------------------------------- day timeline */
+
+// A task with no end still needs to be visible on the bar.
+const STUB_BLOCK_MINUTES = 15;
+const TIMELINE_PAD_MINUTES = 30;
+
+// The window the bar covers: everything scheduled, plus now when it's today,
+// padded out to whole hours so the tick labels land on the hour.
+function timelineRange(scheduled, now) {
+  const points = [];
+
+  scheduled.forEach(task => {
+    points.push(minutesOf(task.start));
+    points.push(hasValidEnd(task) ? minutesOf(task.end) : minutesOf(task.start) + STUB_BLOCK_MINUTES);
+  });
+  if (now) points.push(minutesOf(now));
+
+  if (points.length === 0) return null;
+
+  const from = Math.max(0, Math.floor((Math.min(...points) - TIMELINE_PAD_MINUTES) / 60) * 60);
+  const to = Math.min(24 * 60, Math.ceil((Math.max(...points) + TIMELINE_PAD_MINUTES) / 60) * 60);
+
+  return { from, to: Math.max(to, from + 60) };
+}
+
+function hourLabel(minutes) {
+  const hour = Math.floor(minutes / 60) % 24;
+  return `${hour % 12 || 12}${hour < 12 ? 'a' : 'p'}`;
+}
+
+function renderDayTimeline(scheduled, now) {
+  const el = document.getElementById('dayTimeline');
+  const range = timelineRange(scheduled, now);
+
+  if (!range) {
+    el.innerHTML = '';
+    el.classList.add('empty');
+    return;
+  }
+  el.classList.remove('empty');
+
+  const span = range.to - range.from;
+  const pct = minutes => ((minutes - range.from) / span) * 100;
+
+  let html = '';
+  for (let m = range.from; m <= range.to; m += 60) {
+    html += `<div class="timeline-tick" style="top: ${pct(m)}%"><span>${hourLabel(m)}</span></div>`;
+  }
+
+  html += scheduled.map(task => {
+    const from = minutesOf(task.start);
+    const to = hasValidEnd(task) ? minutesOf(task.end) : from + STUB_BLOCK_MINUTES;
+    const state = taskTimeState(task, now);
+
+    return `<div class="timeline-block ${state} ${task.completed ? 'done' : ''}"
+      data-task-id="${task.id}"
+      style="top: ${pct(from)}%; height: ${Math.max(pct(to) - pct(from), 1.2)}%"></div>`;
+  }).join('');
+
+  if (now) {
+    html += `<div class="timeline-now" id="timelineNow" style="top: ${pct(minutesOf(now))}%"></div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+// Where a task sits relative to the clock: '', 'now', or 'overdue'. Lateness is
+// measured from the end of a block so work in progress isn't called late.
+function taskTimeState(task, now) {
+  if (!now || !task.start || task.completed) return '';
+
+  if (hasValidEnd(task) && task.start <= now && now < task.end) return 'now';
+
+  const deadline = hasValidEnd(task) ? task.end : task.start;
+  return deadline < now ? 'overdue' : '';
+}
+
+// Clicking the bar jumps the list to whatever is happening at that point —
+// which, for a click on or near the now marker, is the task you're in.
+function timelineJump(event) {
+  const el = document.getElementById('dayTimeline');
+  if (el.classList.contains('empty') || scheduledForDay.length === 0) return;
+
+  const rect = el.getBoundingClientRect();
+  const range = timelineRange(scheduledForDay, plannerIsToday() ? currentTimeKey() : null);
+  if (!rect.height || !range) return;
+
+  const ratio = Math.min(Math.max((event.clientY - rect.top) / rect.height, 0), 1);
+  const at = range.from + ratio * (range.to - range.from);
+
+  const containing = scheduledForDay.find(task => {
+    const from = minutesOf(task.start);
+    const to = hasValidEnd(task) ? minutesOf(task.end) : from + STUB_BLOCK_MINUTES;
+    return at >= from && at < to;
+  });
+
+  const target = containing
+    || scheduledForDay.find(task => minutesOf(task.start) >= at)
+    || scheduledForDay[scheduledForDay.length - 1];
+
+  if (target) scrollToTask(target.id);
+}
+
+function scrollToTask(taskId) {
+  const row = document.querySelector(`.daily-task[data-task-id="${taskId}"]`);
+  if (!row) return;
+
+  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  row.classList.remove('pinged');
+  requestAnimationFrame(() => row.classList.add('pinged'));
+}
+
+function plannerIsToday() {
+  return plannerKey() === formatDateKey(startOfToday());
+}
+
+// Reposition the now marker and re-evaluate now/overdue without re-rendering,
+// so the day stays accurate while the tab sits open and an open time editor
+// isn't torn out from under the user mid-edit.
+function refreshTimeStates() {
+  if (!isTabActive('todo') || !plannerIsToday()) return;
+
+  const now = currentTimeKey();
+  const range = timelineRange(scheduledForDay, now);
+  const marker = document.getElementById('timelineNow');
+
+  if (marker && range) {
+    const span = range.to - range.from;
+    marker.style.top = `${((minutesOf(now) - range.from) / span) * 100}%`;
+  }
+
+  scheduledForDay.forEach(task => {
+    const state = taskTimeState(task, now);
+    [
+      document.querySelector(`.daily-task[data-task-id="${task.id}"]`),
+      document.querySelector(`.timeline-block[data-task-id="${task.id}"]`)
+    ].forEach(el => {
+      if (!el) return;
+      el.classList.toggle('now', state === 'now');
+      el.classList.toggle('overdue', state === 'overdue');
+    });
+  });
+}
+
+/* ------------------------------------------------------------ time picker */
+
+const MINUTE_STEP = 5;
+
+// A meridiem chosen before an hour has nowhere to live yet — the stored value
+// is 24-hour, so AM/PM is only derivable once there's an hour. Keyed
+// '<taskId>-<which>' and cleared as soon as the time is real.
+const pendingMeridiem = {};
+
+function meridiemFor(taskId, which, value) {
+  if (value) return minutesOf(value) < 720 ? 'AM' : 'PM';
+  return pendingMeridiem[`${taskId}-${which}`] || (new Date().getHours() < 12 ? 'AM' : 'PM');
+}
+
+// Native <input type="time"> can't be styled, and the user wants the meridiem
+// to read as a pair of selectable buttons — so the picker is built by hand.
+function renderTimePicker(taskId, which, value) {
+  const selected = value ? formatTime(value) : null;
+  const hour = selected ? Number(selected.text.split(':')[0]) : '';
+  const minute = value ? minutesOf(value) % 60 : 0;
+  const meridiem = meridiemFor(taskId, which, value);
+
+  const hours = Array.from({ length: 12 }, (_, i) => i + 1)
+    .map(h => `<option value="${h}" ${h === hour ? 'selected' : ''}>${h}</option>`).join('');
+
+  // Keep an off-step minute (from an older entry) selectable rather than
+  // silently rounding it away.
+  const steps = Array.from({ length: 60 / MINUTE_STEP }, (_, i) => i * MINUTE_STEP);
+  if (!steps.includes(minute)) steps.push(minute);
+
+  const minutes = steps.sort((a, b) => a - b)
+    .map(m => `<option value="${m}" ${m === minute ? 'selected' : ''}>${String(m).padStart(2, '0')}</option>`)
+    .join('');
+
+  return `
+    <div class="time-picker" id="tp-${which}-${taskId}">
+      <select class="tp-hour" aria-label="Hour" onchange="saveTaskTime('${taskId}', '${which}')">
+        <option value="" ${hour === '' ? 'selected' : ''}>--</option>
+        ${hours}
+      </select>
+      <span class="tp-colon">:</span>
+      <select class="tp-minute" aria-label="Minute" onchange="saveTaskTime('${taskId}', '${which}')">
+        ${minutes}
+      </select>
+      <button type="button" class="tp-meridiem ${meridiem === 'AM' ? 'active' : ''}"
+        aria-pressed="${meridiem === 'AM'}"
+        onclick="setMeridiem('${taskId}', '${which}', 'AM')">AM</button>
+      <button type="button" class="tp-meridiem ${meridiem === 'PM' ? 'active' : ''}"
+        aria-pressed="${meridiem === 'PM'}"
+        onclick="setMeridiem('${taskId}', '${which}', 'PM')">PM</button>
+    </div>
+  `;
+}
+
+function readTimePicker(taskId, which) {
+  const picker = document.getElementById(`tp-${which}-${taskId}`);
+  if (!picker) return null;
+
+  const hour = picker.querySelector('.tp-hour').value;
+  if (!hour) return null;
+
+  const minute = Number(picker.querySelector('.tp-minute').value);
+  const isPm = picker.querySelector('.tp-meridiem.active').textContent === 'PM';
+  const hours24 = (Number(hour) % 12) + (isPm ? 12 : 0);
+
+  return `${String(hours24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function setMeridiem(taskId, which, meridiem) {
+  const picker = document.getElementById(`tp-${which}-${taskId}`);
+  if (!picker) return;
+
+  picker.querySelectorAll('.tp-meridiem').forEach(button => {
+    const isChosen = button.textContent === meridiem;
+    button.classList.toggle('active', isChosen);
+    button.setAttribute('aria-pressed', String(isChosen));
+  });
+
+  pendingMeridiem[`${taskId}-${which}`] = meridiem;
+  saveTaskTime(taskId, which);
+}
+
 function toggleTaskTime(taskId) {
   openTimeTaskId = openTimeTaskId === taskId ? null : taskId;
   renderDailyTasks();
-
-  const input = document.getElementById(`task-start-${taskId}`);
-  if (openTimeTaskId && input) input.focus();
+  if (openTimeTaskId) focusPicker(taskId, 'start');
 }
 
-function saveTaskTime(taskId) {
+function focusPicker(taskId, which) {
+  const select = document.querySelector(`#tp-${which}-${taskId} .tp-hour`);
+  if (select) select.focus();
+}
+
+function saveTaskTime(taskId, which) {
   const task = dailyTasks.find(t => t.id === taskId);
   if (!task) return;
 
-  task.start = document.getElementById(`task-start-${taskId}`).value || null;
-  task.end = document.getElementById(`task-end-${taskId}`).value || null;
+  const hadStart = Boolean(task.start);
+  const [wasStart, wasEnd] = [task.start, task.end];
+
+  task.start = readTimePicker(taskId, 'start');
+  task.end = readTimePicker(taskId, 'end');
 
   // An end with no start has nothing to anchor it.
   if (!task.start) task.end = null;
 
+  // Choosing a minute or meridiem before an hour doesn't make a time yet.
+  // Re-rendering on those keystrokes would rebuild the picker from the stored
+  // (still empty) value and throw the half-finished selection away, so leave
+  // the DOM alone until something actually changed.
+  if (task.start === wasStart && task.end === wasEnd) return;
+
+  if (task.start) delete pendingMeridiem[`${taskId}-start`];
+  if (task.end) delete pendingMeridiem[`${taskId}-end`];
+
   saveDailyTasks();
   renderDailyTasks(); // re-sorts; openTimeTaskId keeps this row's editor open
+
+  // Setting a start is nearly always followed by setting an end, so hand the
+  // user straight over instead of making them reach for the second field.
+  if (which === 'start' && !hadStart && task.start && !task.end) {
+    focusPicker(taskId, 'end');
+  }
 }
 
 function removeDailyTask(taskId) {
@@ -1498,3 +1755,8 @@ loadGoals();
 renderCalendar();
 renderGoalsSidebar();
 renderPlanner();
+
+// Keeps the now marker and the now/past-due emphasis honest while the tab sits
+// open. Patches classes and one style rather than re-rendering, so an open time
+// editor survives the tick.
+setInterval(refreshTimeStates, 30000);
