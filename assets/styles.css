@@ -1233,6 +1233,31 @@ textarea {
   color: white;
 }
 
+/* Narrow screens can't fit the date between the arrows without shredding it
+   into four lines, so give it a row of its own above the controls. */
+@media (max-width: 640px) {
+  .planner-nav {
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .planner-nav #plannerDate {
+    flex: 0 0 100%;
+    order: -1;
+    margin-bottom: 0.25rem;
+  }
+
+  .planner-nav button {
+    width: 44px;
+    height: 40px;
+  }
+
+  .planner-nav .planner-today {
+    width: auto;
+    padding: 0 1rem;
+  }
+}
+
 /* Form Helpers */
 .checkbox-label {
   display: flex;

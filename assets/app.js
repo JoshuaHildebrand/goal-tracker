@@ -783,14 +783,13 @@ function renderPlannerDate() {
   const offset = Math.round((plannerDate - startOfToday()) / 86400000);
   const relative = { '-1': 'Yesterday', 0: 'Today', 1: 'Tomorrow' }[offset];
 
-  const full = plannerDate.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric'
-  });
+  // Kept short so it fits one line on a phone. The relative word already
+  // implies the year, and repeating the weekday next to "Tomorrow" is noise.
+  const date = plannerDate.toLocaleDateString('en-US', relative
+    ? { month: 'short', day: 'numeric' }
+    : { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 
-  document.getElementById('plannerDate').textContent = relative ? `${relative} — ${full}` : full;
+  document.getElementById('plannerDate').textContent = relative ? `${relative} · ${date}` : date;
 
   // Only offer the way back when there's somewhere to come back from.
   document.getElementById('plannerToday').style.display = offset === 0 ? 'none' : 'inline-block';
